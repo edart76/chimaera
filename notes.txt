@@ -1,0 +1,21 @@
+
+test for a better, more robust, more general graph case
+referencing and dependency included as priority from the start
+
+referencing trees has been very difficult to understand when the
+tree itself is a dag graph - how do we track deltas in graph structure from
+what the reference should be?
+
+each tree node knows the structure of all its branches as a set of nodes, and
+a set of edges connecting those nodes
+
+also helps to solve the more general problem of referencing specific subgraphs
+
+child nodes held as "refSubgraph" in ref node data?
+
+ignore transforms for now - only direct referencing
+graph.createReferenceNode(fromNode) - returns new node, not added to graph
+
+
+
+
