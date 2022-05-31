@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-"""base class for any node that may replace the data of another node"""
+"""base class for any node that may replace the params of another node"""
 
 import networkx as nx
 from weakref import WeakSet
@@ -14,6 +14,6 @@ class TransformNode(ChimaeraNode):
 
 	def result(self, prevData:NodeDataHolder)->NodeDataHolder:
 		"""all transformers must implement a result()
-		function to return the transformed node data"""
+		function to return the transformed node params"""
 		raise NotImplementedError
 

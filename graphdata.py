@@ -9,10 +9,10 @@ from .nodedata import NodeDataTree
 
 @dataclass
 class SubgraphData:
-	"""data representing subgraph of nodes within a reference
+	"""params representing subgraph of nodes within a reference
 	or transform pipeline
 
-	this is also (maybe) the only format in which any kind of data
+	this is also (maybe) the only format in which any kind of params
 	may pass through the graph between nodes
 	"""
 	# datas for nodes contained in subgraph
@@ -25,12 +25,12 @@ class SubgraphData:
 	def fromChimaeraSubgraph(cls, subgraph:nx.Graph)->SubgraphData:
 		datas = {}
 		for node in subgraph: #type:ChimaeraNode
-			datas[node.uid] = (node.baseData, node.overrideData)
+			datas[node.uid] = (node.baseParams, node.overrideParams)
 		edges = {(i[0].uid, i[1].uid) for i in subgraph.edges}
 		return cls(datas, edges)
 
 	def resultGraph(self, graphCls=nx.DiGraph)->nx.DiGraph:
-		"""return a result nx graph object built from this data
+		"""return a result nx graph object built from this params
 		result is graph of uid strings, not active node objects
 		"""
 		newGraph = graphCls()

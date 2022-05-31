@@ -11,11 +11,15 @@ a set of edges connecting those nodes
 
 also helps to solve the more general problem of referencing specific subgraphs
 
-child nodes held as "refSubgraph" in ref node data?
+child nodes held as "refSubgraph" in ref node params?
 
 ignore transforms for now - only direct referencing
 graph.createReferenceNode(fromNode) - returns new node, not added to graph
 
+graph runs on distinction between parametres and params, and easy conversion between them
+if a node has a "params" input, it is a reference?
+if a node has a "input" input, it is a transformer?
 
+a node may only have a single "params" input, otherwise input order starts to matter
 
 

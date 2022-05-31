@@ -23,13 +23,13 @@ class ChimaeraNode(DataFacade):
 	or CAN BE A REFERENCE
 
 	where possible, add to this class rather than subclassing - would be handy if
-	every kind of node in chimaera had behaviour defined totally by its own data
+	every kind of node in chimaera had behaviour defined totally by its own params
 	"""
 
-	name : str = DataFacade.FacadeDescriptor(NodeDataKeys.nodeName, objectName=NodeDataKeys.dataTree)
+	name : str = DataFacade.FacadeDescriptor(NodeDataKeys.nodeName, objectName=NodeDataKeys.paramTree)
 
 	uid : str = DataFacade.FacadeDescriptor("", getFn=lambda x : x.uid,
-	                                  objectName=NodeDataKeys.dataTree)
+	                                        objectName=NodeDataKeys.paramTree)
 
 	nodeTypeId = 1
 
@@ -38,44 +38,46 @@ class ChimaeraNode(DataFacade):
 
 	def __init__(self, semGraph:ChimaeraGraph, dataArgs:tuple[NodeDataTree, NodeDataTree]):
 		super(ChimaeraNode, self).__init__()
-		self._dataObjects[NodeDataKeys.dataTree], \
+		self._dataObjects[NodeDataKeys.paramTree], \
 		self._dataObjects[NodeDataKeys.overrideTree] = dataArgs[0], dataArgs[1]
 
 		self.semGraph = semGraph
 
+		self.dirty = False
+
 	@property
-	def baseData(self)->NodeDataTree:
-		return self.dataObject(NodeDataKeys.dataTree)
+	def baseParams(self)->NodeDataTree:
+		return self.dataObject(NodeDataKeys.paramTree)
 	@property
-	def overrideData(self)->NodeDataTree:
+	def overrideParams(self)->NodeDataTree:
 		return self.dataObject(NodeDataKeys.overrideTree)
 
 
 	def __repr__(self):
-		return "<{} {}, data: {}>".format(self.__class__.__name__, self.name,
-		                                  self.baseData.displayStr())
+		return "<{} {}, params: {}>".format(self.__class__.__name__, self.name,
+		                                  self.baseParams.displayStr())
 
 
 	def applyOverride(self, dataToOverride:NodeDataTree)->NodeDataTree:
-		"""apply information in baseData.override to dataToOverride
-		should act on holder's baseData
+		"""apply information in baseParams.override to dataToOverride
+		should act on holder's baseParams
 		"""
 		return dataToOverride
 
 	def transform(self, inputGraphData:SubgraphData)->SubgraphData:
 		"""default implementation of transform does not process wider
 		graph structure at all, just runs transformData() on each
-		node data tree in turn"""
+		node params tree in turn"""
 		for uid, (dataTree, overrideTree) in dict(inputGraphData.nodeDatas).items():
 			dataTree = self.transformData(dataTree)
 			inputGraphData.nodeDatas[uid] = (dataTree, overrideTree)
 		return inputGraphData
 
 	def transformData(self, inputData:NodeDataTree)->NodeDataTree:
-		"""defines any transform that this node may do on data when used
+		"""defines any transform that this node may do on params when used
 		as input to another -
-		in the base class, as a direct reference, return copy of THIS NODE's data
-		any modification should act on holder's baseData
+		in the base class, as a direct reference, return copy of THIS NODE's params
+		any modification should act on holder's baseParams
 		"""
 		return self.semGraph.nodeData(self).copy()
 
@@ -83,8 +85,8 @@ class ChimaeraNode(DataFacade):
 	def inputNodes(self)->list[ChimaeraNode]:
 		return self.semGraph.predecessors(self)
 
-	def data(self)->NodeDataTree:
-		"""return either this node's base data or the result of its
+	def params(self)->NodeDataTree:
+		"""return either this node's base params or the result of its
 		input
 		no caching yet
 		"""

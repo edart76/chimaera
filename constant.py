@@ -4,9 +4,14 @@ import typing as T
 
 dataKeyType = (str, T.Sequence[str], T.FrozenSet[str])
 
+class DataUse(Enum):
+	Params = "Params"
+	Flow = "Flow"
+
+
 class NodeDataKeys:
 	"""string key constants used widely"""
-	dataTree = "data"
+	paramTree = "params"
 	overrideTree = "override"
 	nodeName = "nodeName"
 

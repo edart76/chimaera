@@ -25,9 +25,9 @@ class NodeDataTree(Tree):
 
 	@staticmethod
 	def createDataAndOverrideTrees(name:str, uid=None)->tuple[NodeDataTree, NodeDataTree]:
-		"""return starting tuple of (data tree, override tree)
+		"""return starting tuple of (params tree, override tree)
 		for any chimaera node"""
-		dataTree = NodeDataTree(name=NodeDataKeys.dataTree, treeUid=uid)
+		dataTree = NodeDataTree(name=NodeDataKeys.paramTree, treeUid=uid)
 		dataTree.lookupCreate = True
 		dataTree.nodeName = name
 
@@ -40,11 +40,11 @@ class NodeDataTree(Tree):
 
 @dataclass
 class NodeDataHolder(UidElement):
-	"""base class for passive node data - store minimal amount of
+	"""base class for passive node params - store minimal amount of
 	rich information here
 
 	all information directly returned by this object is from the "base"
-	data, no compositing or overriding is done here
+	params, no compositing or overriding is done here
 	"""
 
 	_name: str # only used at init
@@ -54,10 +54,10 @@ class NodeDataHolder(UidElement):
 	# # inputs is optional list of uids (likely just one)
 	# inputUids : list[str] = field(default_factory=list)
 
-	# actual data of node
+	# actual params of node
 	dataTree : NodeDataTree = None
 
-	# overrides is dict of (key, value) to override data passed by inputs
+	# overrides is dict of (key, value) to override params passed by inputs
 	overrideTree : NodeDataTree = None
 	nodeTypeId : int = -1
 
@@ -90,7 +90,7 @@ class NodeDataHolder(UidElement):
 		return self.dataTree("nodeName").v
 
 	def copy(self):
-		"""copy data object and trees"""
+		"""copy params object and trees"""
 		newDataTree = self.dataTree.copy()
 		newOverrideTree = self.overrideTree.copy()
 		return NodeDataHolder(self._name, newDataTree, newOverrideTree)
