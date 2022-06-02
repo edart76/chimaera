@@ -4,7 +4,7 @@ from __future__ import annotations
 import unittest, pprint
 from matplotlib import pyplot as plt
 import networkx as nx
-from tree.chimaeragraph import ChimaeraGraph, ChimaeraNode, NodeDataHolder
+from chimaera import ChimaeraGraph, ChimaeraNode, NodeDataHolder, DataUse
 
 class TestGraphTree(unittest.TestCase):
 	""" test for graph emulating basic tree """
@@ -14,24 +14,47 @@ class TestGraphTree(unittest.TestCase):
 
 	def test_addNode(self):
 		aNode = self.graph.createNode("A")
-		self.graph.createNode("B")
-		self.graph.createNode("C")
+		bNode = self.graph.createNode("B")
+		cNode = self.graph.createNode("C")
 
 		self.assertIn(aNode, self.graph)
 		self.assertIn(aNode, self.graph.nodes)
 
 		pprint.pprint(tuple(self.graph.nodes))
 
+	def test_connectNodes(self):
+		aNode = self.graph.createNode("A")
+		bNode = self.graph.createNode("B")
+		cNode = self.graph.createNode("C")
+
+		self.graph.connectNodes(aNode, bNode)
+		print(self.graph.edges)
+		#print(self.graph.edges(aNode, keys=True))
+		print(self.graph.nodeInputMap(bNode))
 
 
 	def test_addNodeReference(self):
-		self.graph.createNode("A")
+		aNode = self.graph.createNode("A")
+		aNode.name = "nodeA"
 		bNode = self.graph.createNode("B")
-		self.graph.createNode("C")
+		bNode.name = "nodeB"
+		cNode = self.graph.createNode("C")
 
-		refNode = self.graph.addReferenceToNode(bNode)
+		self.assertEqual(aNode.name, "nodeA")
+		self.assertEqual(bNode.name, "nodeB")
 
-		print(self.graph.nodes)
+		# set B to be reference of A
+		self.graph.connectNodes(aNode, bNode,
+		                        fromUse=DataUse.Params, toUse=DataUse.Params)
+
+		self.assertTrue(bNode.isReference())
+
+		# check that node name has been changed
+		self.assertEqual(bNode.name, "nodeA")
+
+
+
+
 
 if __name__ == '__main__':
 	graph = ChimaeraGraph()

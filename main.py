@@ -3,9 +3,11 @@ import networkx as nx
 from weakref import WeakSet
 import typing as T
 
+from tree.lib.sequence import flatten
+
 from .nodedata import NodeDataHolder, NodeDataTree
 from .constant import NodeDataKeys, DataUse
-from .graphdata import SubgraphData
+from .graphdata import GraphData
 from .node import ChimaeraNode
 from .transform import TransformNode
 from .edgeset import EdgeSet, EdgeSetData
@@ -35,6 +37,12 @@ class ChimaeraGraph(nx.MultiDiGraph):
 		ONE DependEdgeSet for referencing,
 		ONE DependEdgeSet for normal graph dependency?
 
+	node evaluation goes like this:
+
+	node.outputDataForUse() -> graph.incomingDataForUse
+
+
+
 	"""
 
 	def __init__(self):
@@ -51,19 +59,19 @@ class ChimaeraGraph(nx.MultiDiGraph):
 		uid = fromId if isinstance(fromId, str) else fromId.uid
 		return self.uidNodeMap()[uid]
 
-	def nodeData(self, node:ChimaeraNode):
-		"""retrieve or resolve the final params object for given node"""
-		if not self.predecessors(node):
-			return node.baseParams
-
-		# node i reference or result of transform chain
-		data = node.baseParams
-		for inputNode in self.predecessors(node):
-			data = inputNode.transformData(data)
-
-		# apply any override params set on the node itself to result params
-		data = node.applyOverride(data)
-		return data
+	# def nodeData(self, node:ChimaeraNode):
+	# 	"""retrieve or resolve the final params object for given node"""
+	# 	if not self.predecessors(node):
+	# 		return node.baseParams
+	#
+	# 	# node i reference or result of transform chain
+	# 	data = node.baseParams
+	# 	for inputNode in self.predecessors(node):
+	# 		data = inputNode.transformData(data)
+	#
+	# 	# apply any override params set on the node itself to result params
+	# 	data = node.applyOverride(data)
+	# 	return data
 
 	def createNode(self, name:str, nodeCls=ChimaeraNode, add=True):
 		"""creates new node and params"""
@@ -83,11 +91,42 @@ class ChimaeraGraph(nx.MultiDiGraph):
 
 	# connecting nodes
 	def connectNodes(self, fromNode:ChimaeraNode, toNode:ChimaeraNode,
-	                 fromUse=DataUse.Flow, toUse=DataUse.Flow):
+	                 fromUse=DataUse.Flow, toUse=DataUse.Flow,
+	                 inputIndex=None):
 		"""edge keys are always destination uses, since the graph mainly looks back"""
-		return self.add_edge(fromNode, toNode, key=toUse, fromUse=fromUse, toUse=toUse)
+		return self.add_edge(fromNode, toNode, key=toUse, fromUse=fromUse, toUse=toUse, inputIndex=inputIndex)
 
-	def flowSource(self, node:ChimaeraNode)->ChimaeraNode:
+	# getting node data - unsure of what to defer to node here
+	def nodeOutputDataForUse(self, node:ChimaeraNode, use:DataUse)->GraphData:
+		"""return a node's data for a given DataUse"""
+		return node.outputDataForUse(use)
+
+	# querying nodes by edges
+	def nodeInputMap(self, node:ChimaeraNode)->dict[DataUse, list[tuple[DataUse, ChimaeraNode]]]:
+		"""todo: add processing for edge indices here
+		leaves are tuples of [fromUse, node] - allowing item[0].outputDataForUse(item[1])
+		"""
+		nodeEdges = self.in_edges(node, keys=True, data=True)
+		nodeMap = {}
+		for i in DataUse:
+			nodeTies = []
+			for edge in nodeEdges:
+				if edge[2] != i:
+					continue
+				nodeTies.append( (edge[0], edge[3]["fromUse"]))
+			nodeMap[i] = nodeTies
+		return nodeMap
+
+	def incomingDataForUse(self, node:ChimaeraNode, use:DataUse)->GraphData:
+		"""gathers all incoming data from input nodes for given use"""
+		inTies = self.nodeInputMap(node)[use]
+		print("inTies", inTies)
+		print([self.nodeOutputDataForUse(i[0], i[1]) for i in inTies])
+		return GraphData.combine([self.nodeOutputDataForUse(i[0], i[1]) for i in inTies])
+
+
+	def flowSources(self, node:ChimaeraNode)->list[ChimaeraNode]:
+		self.edges
 
 
 	def addReferenceToNode(self, baseNode:ChimaeraNode, name=None):
@@ -110,7 +149,7 @@ class ChimaeraGraph(nx.MultiDiGraph):
 		return refNode
 
 		subgraph = self.subgraph(nodesToReference)
-		subgraphData = SubgraphData.fromChimaeraSubgraph(subgraph)
+		subgraphData = GraphData.fromChimaeraSubgraph(subgraph)
 
 
 	def nodeValid(self, node)->bool:
