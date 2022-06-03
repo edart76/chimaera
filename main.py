@@ -11,6 +11,8 @@ from .graphdata import GraphData
 from .node import ChimaeraNode
 from .transform import TransformNode
 from .edgeset import EdgeSet, EdgeSetData
+from .lib.graphsignal import GraphDeltaSignalComponent
+from chimaera.lib.delta import GraphNodeDelta, GraphEdgeDelta
 
 CREATED_BY_KEY = "createdBy" # key for edge to node that created this one
 
@@ -50,6 +52,7 @@ class ChimaeraGraph(nx.MultiDiGraph):
 		#self.nodeMap : dict[NodeDataHolder, ChimaeraNode] = {}
 		# self.edgeSetMap : dict[NodeData, SetNode] = {}
 		#self.datas : dict[str, NodeData]
+		self.signalComponent = GraphDeltaSignalComponent(self)
 
 	def uidNodeMap(self)->dict[str, ChimaeraNode]:
 		return {i.uid : i for i in self}
@@ -58,20 +61,6 @@ class ChimaeraGraph(nx.MultiDiGraph):
 		"""retrieve a node"""
 		uid = fromId if isinstance(fromId, str) else fromId.uid
 		return self.uidNodeMap()[uid]
-
-	# def nodeData(self, node:ChimaeraNode):
-	# 	"""retrieve or resolve the final params object for given node"""
-	# 	if not self.predecessors(node):
-	# 		return node.baseParams
-	#
-	# 	# node i reference or result of transform chain
-	# 	data = node.baseParams
-	# 	for inputNode in self.predecessors(node):
-	# 		data = inputNode.transformData(data)
-	#
-	# 	# apply any override params set on the node itself to result params
-	# 	data = node.applyOverride(data)
-	# 	return data
 
 	def createNode(self, name:str, nodeCls=ChimaeraNode, add=True):
 		"""creates new node and params"""
@@ -106,7 +95,7 @@ class ChimaeraGraph(nx.MultiDiGraph):
 		"""todo: add processing for edge indices here
 		leaves are tuples of [fromUse, node] - allowing item[0].outputDataForUse(item[1])
 		"""
-		nodeEdges = self.in_edges(node, keys=True, data=True)
+		nodeEdges = self.in_edges([node], keys=True, data=True)
 		nodeMap = {}
 		for i in DataUse:
 			nodeTies = []
@@ -155,7 +144,10 @@ class ChimaeraGraph(nx.MultiDiGraph):
 	def nodeValid(self, node)->bool:
 		return node in self.nodes
 
-
+	# signal setup
+	def onParamsChanged(self, node:ChimaeraNode):
+		"""fires when direct params changed on node -
+		won't work on references"""
 
 
 

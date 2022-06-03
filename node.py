@@ -16,6 +16,20 @@ from .nodedata import NodeDataHolder, NodeDataTree
 from chimaera.constant import NodeDataKeys, DataUse
 
 from tree.lib.object import DataFacade, UidElement
+from tree import Signal
+
+class NodeParamDescriptor:
+	"""descriptor for values that can be read and set from node params -
+	if necessary creating an override"""
+	def __init__(self, key:str):
+		self.key = key
+
+	def __get__(self, instance:ChimaeraNode, owner):
+		return instance.getParam(self.key)
+
+	def __set__(self, instance:ChimaeraNode, value):
+		instance.setParam(self.key, value)
+
 
 class ChimaeraNode(DataFacade):
 	"""active node object
@@ -27,7 +41,9 @@ class ChimaeraNode(DataFacade):
 	every kind of node in chimaera had behaviour defined totally by its own params
 	"""
 
-	#name : str = DataFacade.FacadeDescriptor(NodeDataKeys.nodeName, objectName=NodeDataKeys.paramTree)
+	validDataTypes = DataUse
+
+	name = NodeParamDescriptor(NodeDataKeys.nodeName)
 
 	uid : str = DataFacade.FacadeDescriptor("", getFn=lambda x : x.uid,
 	                                        objectName=NodeDataKeys.paramTree)
@@ -43,8 +59,15 @@ class ChimaeraNode(DataFacade):
 		self._dataObjects[NodeDataKeys.overrideTree] = dataArgs[0], dataArgs[1]
 
 		self.graph = semGraph
-
+		self.nodeEvaluated = Signal("nodeEvaluated")
 		self.dirty = False
+
+		self.paramsChanged = Signal()
+		# connect tree signals to node changed signal
+		for i in dataArgs:
+			for signal in i.signals():
+				signal.connect(self.paramsChanged)
+
 
 	@property
 	def baseParams(self)->NodeDataTree:
@@ -53,12 +76,8 @@ class ChimaeraNode(DataFacade):
 	def overrideParams(self)->NodeDataTree:
 		return self.dataObject(NodeDataKeys.overrideTree)
 
-	@property
-	def name(self)->str:
-		return self.params()[NodeDataKeys.nodeName]
-	@name.setter
-	def name(self, val:str):
-		self.params()[NodeDataKeys.nodeName] = val
+	def __hash__(self):
+		return self.baseParams.__hash__()
 
 	def __repr__(self):
 		# return "<{} {}, params: \n{}>".format(self.__class__.__name__, self.name,		                                  self.baseParams.displayStr())
@@ -105,7 +124,26 @@ class ChimaeraNode(DataFacade):
 			incomingData = GraphData(self.params())
 		return self.transform(incomingData)
 
+	def setParam(self, key:str, value):
+		"""set the value for the given parametre on the node's param trees -
+		if needed, an override is created"""
+		if not self.isReference():
+			self.params()(key).value = value
+			return
+		# node is reference - check if this value already exists
+		existBranch = self.params().getBranch(key)
+		# is this value the same as that in live reference? If so, do not create override (for now)
+		if existBranch is not None:
+			if existBranch.value == value:
+				return
+		# create override
+		self.overrideParams(key).value = value
 
+	def getParam(self, key:str, default:(None, Exception)=None):
+		result = self.params().get(key, default)
+		# if issubclass(default, Exception) and default == result:
+		# 	raise KeyError("Key {} not found in node {}".format(key, self))
+		return result
 
 	def applyOverride(self, dataToOverride: NodeDataTree,
 	                  overrideData:NodeDataTree=None) -> NodeDataTree:
