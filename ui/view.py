@@ -9,6 +9,7 @@ from PySide2 import QtCore, QtWidgets, QtGui
 from tree import Tree
 from tree.ui.lib import KeyState, PartialAction
 from tree.ui import TreeMenu
+from tree.ui.libwidget.draggraphicsview import MouseDragView
 
 
 if T.TYPE_CHECKING:
@@ -51,13 +52,32 @@ def widgets_at(pos):
 
 	return widgets
 
+class BackgroundGridPixmap(QtGui.QPixmap):
+	"""system for building patterns for background"""
 
-class ChimaeraGraphView(QtWidgets.QGraphicsView):
+	@classmethod
+	def drawPattern(cls, step:int):
+		pix = BackgroundGridPixmap(step, step)
+		painter = QtGui.QPainter()
+		pix.fill(QtCore.Qt.transparent)
+		painter.begin(pix)
+		patternSpan = pix.width() - 1
+
+		pix.drawSquare(painter, patternSpan)
+		return pix
+
+	def drawSquare(self, painter:QtGui.QPainter, patternSpan:int):
+		painter.setPen(QtCore.Qt.gray)
+		painter.drawLine(0, 0, patternSpan, 0)
+		painter.drawLine(0, 0, 0, patternSpan)
+
+class ChimaeraGraphView(MouseDragView):
 	"""individual scene and views are unique pairs, even if the same
 	scene/view may draw from the same graph"""
 
 	def __init__(self, parent:ChimaeraGraphWidget=None):
 		super(ChimaeraGraphView, self).__init__(parent)
+		self.setBackgroundBrush(BackgroundGridPixmap.drawPattern(10))
 	
 	def parent(self) -> ChimaeraGraphWidget:
 		return super(ChimaeraGraphView, self).parent()

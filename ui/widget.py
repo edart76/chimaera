@@ -33,6 +33,7 @@ class ChimaeraGraphWidget(QtWidgets.QWidget):
 		self.graph:ChimaeraGraph = None
 		self.scene = ChimaeraGraphScene(parent=self)
 		self.view = ChimaeraGraphView(parent=self)
+		self.view.setScene(self.scene)
 
 		layout = QtWidgets.QVBoxLayout()
 		layout.addWidget(self.view)

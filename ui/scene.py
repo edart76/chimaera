@@ -9,6 +9,7 @@ from tree import Tree
 from typing import TYPE_CHECKING, Union, Dict, List
 import typing as T
 
+
 from PySide2 import QtCore, QtWidgets, QtGui
 
 if TYPE_CHECKING:
@@ -21,8 +22,10 @@ from treegraph.ui.style import (VIEWER_BG_COLOR,
 from treegraph.ui import relax
 from tree.ui.lib import KeyState, keyDict
 from tree.lib.inheritance import superClassLookup, containsSuperClass
+from tree.ui.libwidget.draggraphicsscene import MouseDragScene
 
 
+import networkx as nx
 from chimaera import ChimaeraGraph, ChimaeraNode
 from chimaera.lib.delta import GraphEdgeDelta, GraphNodeDelta
 from chimaera.ui.delegate import NodeDelegate, EdgeDelegate
@@ -37,7 +40,7 @@ def randomPastel(seed):
 	rgb = colorsys.hsv_to_rgb(h, s, v)
 	return rgb
 
-class ChimaeraGraphScene(QtWidgets.QGraphicsScene):
+class ChimaeraGraphScene(MouseDragScene):
 	"""graphics scene for interfacing with abstractgraph and ui
 	hook directly into abstractgraph tree signals
 	"""
@@ -49,7 +52,6 @@ class ChimaeraGraphScene(QtWidgets.QGraphicsScene):
 		super(ChimaeraGraphScene, self).__init__(parent)
 
 
-		self.setSceneRect(1000, 200, 0, 0)
 		self.tiles = {} #type: Dict[ChimaeraNode, NodeDelegate]
 		self.pipes = {} #type: Dict[tuple[ChimaeraNode, ChimaeraNode], EdgeDelegate]
 
@@ -150,6 +152,9 @@ class ChimaeraGraphScene(QtWidgets.QGraphicsScene):
 	# 		self.addPipe(pipe)
 	#
 	# 		return pipe
+
+	# def layoutNodes(self, nodes:list[NodeDelegate]):
+	# 	"""moves around given nodes to avoid intersections (if possible)"""
 
 	def addPipe(self, pipe):
 		self.addItem(pipe)
@@ -255,33 +260,6 @@ class ChimaeraGraphScene(QtWidgets.QGraphicsScene):
 		# if self.activeView:
 		# 	self.activeView.beginDrawPipes(event)
 
-	def mouseMoveEvent(self, event):
-
-		self.updatePipePaths(self.selectedTiles())
-
-		self.mouseMoveCounter += 1
-		self.mouseMoveCounter = self.mouseMoveCounter % 6
-
-		if self.mouseMoveCounter:
-			return super(ChimaeraGraphScene, self).mouseMoveEvent(event)
-
-		# only activate occasionally
-		# get intersecting tiles
-		toRelax = []
-		expand = 20
-		margins = QtCore.QMargins(expand, expand, expand, expand)
-		for i in self.selectedTiles():
-			items = self.items(i.sceneBoundingRect().marginsAdded(margins))
-			items = set(filter(lambda x: isinstance(x, NodeDelegate), items))
-			items = (items).difference(set(self.selectedTiles()))
-
-			toRelax.extend(items)
-
-		#for i in self.selectedTiles():
-		#self.relaxItems(toRelax) # not needed
-		#self.update()
-		super(ChimaeraGraphScene, self).mouseMoveEvent(event)
-
 	def relaxItems(self, items, iterations=1):
 		for n in range(iterations):
 			for i in items:
@@ -298,8 +276,8 @@ class ChimaeraGraphScene(QtWidgets.QGraphicsScene):
 		"""
 		tiles = tiles or set(self.tiles.values())
 		nodes = set(i.node for i in tiles)
-		islands = self.graph.getIslands(nodes)
-		for index, island in islands.items():
+		islands = nx.connected_components(self.graph())
+		for index, island in enumerate(islands):
 			ordered = self.graph.orderNodes(island)
 
 			# only x for now
@@ -314,8 +292,6 @@ class ChimaeraGraphScene(QtWidgets.QGraphicsScene):
 		self.updatePipePaths(tiles)
 
 	def mouseReleaseEvent(self, event):
-		if self.activeView:
-			self.activeView.endDrawPipes(event)
 		super(ChimaeraGraphScene, self).mouseReleaseEvent(event)
 
 	def keyPressEvent(self, event):
@@ -335,94 +311,8 @@ class ChimaeraGraphScene(QtWidgets.QGraphicsScene):
 
 
 
-	def dragMoveEvent(self, event:QtWidgets.QGraphicsSceneDragDropEvent):
-		if debugEvents:print("scene dragMoveEvent")
-		return super().dragMoveEvent(event)
-
-
 	### region drawing
 
-	def _draw_grid(self, painter, rect, pen, grid_size):
-		# change to points
-		lines = []
-		left = int(rect.left()) - (int(rect.left()) % grid_size)
-		top = int(rect.top()) - (int(rect.top()) % grid_size)
-		x = left
-		while x < rect.right():
-			x += grid_size
-			lines.append(QtCore.QLineF(x, rect.top(), x, rect.bottom()))
-		y = top
-		while y < rect.bottom():
-			y += grid_size
-			lines.append(QtCore.QLineF(rect.left(), y, rect.right(), y))
-		painter.setPen(pen)
-		painter.drawLines(lines)
-
-
-	def drawBackground(self, painter, rect):
-		#painter.save()
-		# draw solid background
-		color = QtGui.QColor(*self.background_color)
-		painter.setRenderHint(QtGui.QPainter.Antialiasing, False)
-		painter.setBrush(color)
-		painter.drawRect(rect.normalized())
-		if not self.grid:
-			return
-		zoom = self.activeView.get_zoom()
-		grid_size = 20
-		if zoom > -0.5:
-			color = QtGui.QColor(*self.grid_color)
-			pen = QtGui.QPen(color, 0.65)
-			self._draw_grid(painter, rect, pen, grid_size)
-		color = QtGui.QColor(*VIEWER_BG_COLOR)
-		color = color.lighter(130)
-		color = QtCore.Qt.lightGray
-
-		pen = QtGui.QPen(color, 0.65)
-		self._draw_grid(painter, rect, pen, grid_size * 8)
-
-		# draw node set fields
-		# how many sets is each node part of
-		tileDepth = {i : 1 for i in self.tiles.values()}
-		for n, (name, data) in enumerate(
-				self.graph.nodeSets.items()):
-			tiles = [self.tiles[i] for i in data.nodes]
-
-			# get random colour for this set
-			s = hash(name)
-			rgb = randomPastel(s)
-			colour = QtGui.QColor.fromRgbF( *rgb )
-			painter.pen().setColor(colour)
-			painter.setPen(colour)
-			colour.setAlphaF(0.2)
-			painter.brush().setColor(colour)
-			painter.setBrush(colour)
-
-			# gather corner points of all nodes
-			points = [None] * len(tiles) * 4
-			for i, tile in enumerate(tiles):
-
-				# expand for each set node is part of
-				expansion = 10 * tileDepth[tile]
-				margins = QtCore.QMargins(
-					expansion, expansion, expansion, expansion
-				)
-
-				r = tile.sceneBoundingRect()
-				r = r.marginsAdded(margins)
-				points[i * 4] = r.topLeft()
-				points[i * 4 + 1] = r.topRight()
-				points[i * 4 + 2] = r.bottomRight()
-				points[i * 4 + 3] = r.bottomLeft()
-
-				tileDepth[tile] += 1
-			# points = [QtCore.QPoint(j) for j in points]
-			points = [j.toPoint() for j in points]
-			poly = QtGui.QPolygon.fromList(points)
-			painter.drawConvexPolygon(poly)
-
-
-		#painter.restore()
 	# endregion
 
 	def serialiseUi(self, graphData):

@@ -153,10 +153,10 @@ class NodeDelegate(QtWidgets.QGraphicsItem):
 		# if self.isSelected():
 		# 	border_width = 1.2
 		# 	border_color = QtGui.QColor(*NODE_SEL_BORDER_COLOR)
-		# border_rect = QtCore.QRectF(rect.left() - (border_width / 2),
-		# 							rect.top() - (border_width / 2),
-		# 							rect.width() + border_width,
-		# 							rect.height() + border_width)
+		border_rect = QtCore.QRectF(rect.left() - (border_width / 2),
+									rect.top() - (border_width / 2),
+									rect.width() + border_width,
+									rect.height() + border_width)
 		path = QtGui.QPainterPath()
 		path.addRoundedRect(border_rect, radius_x, radius_y)
 		painter.setBrush(QtCore.Qt.NoBrush)
@@ -180,6 +180,9 @@ class NodeDelegate(QtWidgets.QGraphicsItem):
 
 	# def getActions(self)->List[Action]:
 	# 	return self.node.getAllActions()
+
+	def onSceneSelectionChanged(self):
+		pass
 
 	def serialise(self):
 		"""save position in view"""

@@ -1,30 +1,38 @@
 from PySide2 import QtWidgets, QtGui, QtCore
 from treegraph.ui.constant import PIPE_STYLES
-from treegraph.ui.delegate.knob import Knob
+
 from treegraph.ui.style import Z_VAL_PIPE, PIPE_DEFAULT_COLOR, PIPE_STYLE_DEFAULT, PIPE_WIDTH, PIPE_ACTIVE_COLOR, \
 	PIPE_HIGHLIGHT_COLOR
 
+from chimaera import ChimaeraGraph, ChimaeraNode, DataUse
+from chimaera.ui.delegate.node import NodeDelegate
 
 class EdgeDelegate(QtWidgets.QGraphicsPathItem):
 	"""tis a noble thing to be a bridge between knobs"""
 
-	def __init__(self, start=None, end=None, edge=None):
+	def __init__(self, edgeTuple:tuple[ChimaeraNode, ChimaeraNode, dict]):
 		super(EdgeDelegate, self).__init__()
 		self.setZValue(Z_VAL_PIPE)
 		self.setAcceptHoverEvents(True)
-		self._color = start.colour if start else PIPE_DEFAULT_COLOR
+
+		self.edgeTuple = edgeTuple
+
+		self._color = PIPE_DEFAULT_COLOR
 		self._style = PIPE_STYLE_DEFAULT
 		self._active = False
 		self._highlight = False
-		self._start = start
-		self._end = end
 		self.pen = None
 		self.setFlags(
 			QtWidgets.QGraphicsItem.ItemIsSelectable
 		)
 
-		self.edge = edge
+	@property
+	def start(self)->ChimaeraNode:
+		return self.edgeTuple[0]
 
+	@property
+	def end(self) -> ChimaeraNode:
+		return self.edgeTuple[1]
 
 	def setSelected(self, selected):
 		if selected:
