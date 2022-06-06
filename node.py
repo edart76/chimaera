@@ -81,15 +81,20 @@ class ChimaeraNode(DataFacade):
 
 	def __repr__(self):
 		# return "<{} {}, params: \n{}>".format(self.__class__.__name__, self.name,		                                  self.baseParams.displayStr())
-		return "<{} {}>".format(self.__class__.__name__, self.name)
+		try:
+			name = self.getParam(NodeDataKeys.nodeName)
+		except:
+			name = self.baseParams[NodeDataKeys.nodeName]
+		return "<{} {}>".format(self.__class__.__name__, name)
 
 	def outputDataForUse(self, use:DataUse)->GraphData:
 		"""get output information on node"""
 		if use == DataUse.Params:
-			data = [self.params()]
+			dataTrees = [self.params()]
+			outGraphData = GraphData(dataTrees)
 		elif use == DataUse.Flow:
-			data = self.outputFlowData()
-		return GraphData(data)
+			outGraphData = self.outputFlowData()
+		return outGraphData
 
 	def params(self)->NodeDataTree:
 		"""return either this node's base params or the result of its
@@ -121,7 +126,7 @@ class ChimaeraNode(DataFacade):
 		else:
 			# by default we run the node's own transform on its own param tree if no data is given -
 			# I think this is inkeeping with expected behaviour of a transformer
-			incomingData = GraphData(self.params())
+			incomingData = GraphData([self.params()])
 		return self.transform(incomingData)
 
 	def setParam(self, key:str, value):
@@ -139,11 +144,15 @@ class ChimaeraNode(DataFacade):
 		# create override
 		self.overrideParams(key).value = value
 
-	def getParam(self, key:str, default:(None, Exception)=None):
-		result = self.params().get(key, default)
-		# if issubclass(default, Exception) and default == result:
-		# 	raise KeyError("Key {} not found in node {}".format(key, self))
-		return result
+	def getParam(self, key:str, default:(None, Exception)=None, errorNotFound=True):
+		params = self.params()
+		branch = params.getBranch(key)
+		if branch is None:
+			if errorNotFound:
+				raise KeyError("Key {} not found in params {} of node {}".format(key, self.params(), self))
+			return default
+		return branch.value
+
 
 	def applyOverride(self, dataToOverride: NodeDataTree,
 	                  overrideData:NodeDataTree=None) -> NodeDataTree:
@@ -173,7 +182,7 @@ class ChimaeraNode(DataFacade):
 		in the base class, as a direct reference, return copy of THIS NODE's params
 		any modification should act on holder's baseParams
 		"""
-		return self.graph.nodeData(self).copy()
+		return inputData.copy()
 
 	def inputNodes(self) -> list[ChimaeraNode]:
 		return self.graph.predecessors(self)

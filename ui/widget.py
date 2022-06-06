@@ -6,21 +6,8 @@ import pprint
 import typing as T
 from PySide2 import QtCore, QtWidgets, QtGui
 
-from tree import Tree
-from tree.ui.lib import KeyState, PartialAction
-from tree.ui import TreeMenu
 
-from treegraph.ui.scene import GraphScene
-# from edRig.tesserae.abstractgraph import Graph
-from treegraph.graph import Graph
-from treegraph.ui.tabsearch import TabSearchWidget
-
-from treegraph.ui.delegate.node import NodeDelegate
-from treegraph.ui.delegate.knob import Knob
-from treegraph.ui.delegate.edge import EdgeDelegate
-from treegraph.ui.style import *
-
-from chimaera import ChimaeraGraph, ChimaeraNode
+from chimaera import ChimaeraGraph, ChimaeraNode, DataUse
 
 from chimaera.ui.view import ChimaeraGraphView
 from chimaera.ui.scene import ChimaeraGraphScene
@@ -43,7 +30,7 @@ class ChimaeraGraphWidget(QtWidgets.QWidget):
 
 	def setGraph(self, graph:ChimaeraGraph):
 		self.graph = graph
-		self.scene.sync()
+		self.scene.setGraph(graph)
 
 def test():
 
@@ -62,9 +49,14 @@ def test():
 	cNode = graph.createNode("C")
 	cNode.name = "nodeC"
 
+	graph.connectNodes(bNode, cNode )
+	graph.connectNodes(bNode, cNode ,
+	                   toUse=DataUse.Params)
+
 	widg = ChimaeraGraphWidget(graph, parent=win
 	                  )
 	win.setCentralWidget(widg)
+	win.setGeometry(400, 400, 600, 600)
 
 	win.show()
 	sys.exit(app.exec_())

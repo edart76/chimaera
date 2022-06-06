@@ -12,8 +12,13 @@ from tree.ui.atomicwidget import AtomicWidget, StringWidget
 from tree.ui.libwidget.atomicproxywiget import AtomicProxyWidget
 
 #from treegraph.node import GraphNode
+import typing as T
 from chimaera import ChimaeraGraph, ChimaeraNode
 from chimaera.constant import DataUse
+from chimaera.ui.base import GraphicsItemChange
+
+if T.TYPE_CHECKING:
+	from chimaera.ui.scene import ChimaeraGraphScene
 
 class SettingsProxy(QtWidgets.QGraphicsProxyWidget):
 	"""class specific to holding tree widget for node"""
@@ -30,13 +35,14 @@ class PlugDelegate(QtWidgets.QGraphicsEllipseItem):
 class NodeDelegate(QtWidgets.QGraphicsItem):
 	""" drawing for individual chimaera nodes
 
+	connection points for edges are consistent heights on node
 	 """
 
 	def __init__(self, node:ChimaeraNode=None,  parent=None,
 	             ):
 		super(NodeDelegate, self).__init__(parent)
 		self.node = node
-		self.settingsProxy = None
+		self.settingsProxy :SettingsProxy = None
 		self.settingsWidg : TreeWidget = None
 
 
@@ -57,9 +63,16 @@ class NodeDelegate(QtWidgets.QGraphicsItem):
 		self.borderColour = (200,200,250)
 		textColour = QtGui.QColor(200, 200, 200)
 		self.classTag.setDefaultTextColor(textColour)
-		self.classTag.setPos(self.boundingRect().width(), 0)
+		self.classTag.setPos(self.boundingRect().width() + 2, 0)
+
+		self.settingsProxy.setPos(0,
+		                          self.nameTagProxy.rect().bottom() + 10)
 
 		self.makeConnections()
+
+	def scene(self) -> ChimaeraGraphScene:
+		return super(NodeDelegate, self).scene()
+
 
 	def makeConnections(self):
 		self.nameTag.atomValueChanged.connect(self._onNameTagChanged)
@@ -86,14 +99,25 @@ class NodeDelegate(QtWidgets.QGraphicsItem):
 	def height(self):
 		return self.boundingRect().height()
 
-	# def onSceneSelectionChanged(self):
-	# 	"""called externally whenever scene selection changes
-	# 	update state of python node"""
-	# 	self.node.selected = self.isSelected()
-	#
-	# def onPythonSelectionChanged(self, state=None):
-	# 	"""update selection state of UI"""
-	# 	self.setSelected(self.node.selected)
+	def edgePointMap(self)->dict[DataUse, tuple[QtCore.QPoint, QtCore.QPoint]]:
+		pointMap = {}
+		nMembers = len(DataUse)
+		increment = self.boundingRect().height() / (nMembers + 2)
+		for i, member in enumerate(DataUse):
+			height = increment * (i + 1)
+			pointMap[member] = (QtCore.QPointF(0, height) + self.scenePos(),
+			                    QtCore.QPointF(self.boundingRect().width(), height) + self.scenePos())
+		return pointMap
+
+	def itemChange(self, change:QtWidgets.QGraphicsItem.GraphicsItemChange, value):
+		if self.scene():
+			self.scene().itemChanged.emit(GraphicsItemChange(self, change, value))
+		return super(NodeDelegate, self).itemChange(change, value)
+
+
+	def onSceneItemChange(self, change:GraphicsItemChange):
+		if change.item is self:
+			return
 
 	def getSize(self):
 		"""
@@ -104,8 +128,11 @@ class NodeDelegate(QtWidgets.QGraphicsItem):
 		#minWidth = minRect.x()
 		minHeight = minRect.y() + 20
 
-		minHeight += self.settingsProxy.rect().height()
-		return minWidth, minHeight
+		minRect = minRect.united(self.settingsProxy.rect().toRect())
+
+		#minHeight += self.settingsProxy.rect().height()
+
+		return minRect.width(), minRect.height()
 
 	def boundingRect(self):
 		minWidth, minHeight = self.getSize()

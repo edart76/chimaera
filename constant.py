@@ -11,6 +11,7 @@ class DataUse(Enum):
 	Params = "Params"
 	Flow = "Flow"
 	Structure = "Structure"
+	Creator = "Creator"
 
 
 class NodeDataKeys:

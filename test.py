@@ -43,9 +43,17 @@ class TestGraphTree(unittest.TestCase):
 		self.assertEqual(aNode.name, "nodeA")
 		self.assertEqual(bNode.name, "nodeB")
 
+		#graph.connectNodes(bNode, cNode)
+		newEdge = self.graph.connectNodes(bNode, cNode,
+		                   toUse=DataUse.Params)
+		self.assertEqual(cNode.name, "nodeB")
+
+
+		return
 		# set B to be reference of A
 		self.graph.connectNodes(aNode, bNode,
 		                        fromUse=DataUse.Params, toUse=DataUse.Params)
+		self.assertTrue(bNode.isReference())
 
 		self.assertTrue(bNode.isReference())
 

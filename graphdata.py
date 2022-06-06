@@ -50,10 +50,12 @@ class GraphData:
 		"""initialise new graph data object from arbitrary inputs"""
 		datas = []
 		edges = set()
+		#print("combine", tuple(graphDatas), graphDatas)
+
 		graphDatas = flatten(graphDatas)
-		#print("combine", tuple(graphDatas))
+		#print("combine", tuple(graphDatas), graphDatas)
 		for i in graphDatas:
-			print("i", i)
+			#print("i", i)
 			if isinstance(i, GraphData):
 				datas.extend([i.copy() for i in i.nodeDatas])
 				edges.update(i.edges)

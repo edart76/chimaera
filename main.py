@@ -109,9 +109,10 @@ class ChimaeraGraph(nx.MultiDiGraph):
 	def incomingDataForUse(self, node:ChimaeraNode, use:DataUse)->GraphData:
 		"""gathers all incoming data from input nodes for given use"""
 		inTies = self.nodeInputMap(node)[use]
-		print("inTies", inTies)
-		print([self.nodeOutputDataForUse(i[0], i[1]) for i in inTies])
-		return GraphData.combine([self.nodeOutputDataForUse(i[0], i[1]) for i in inTies])
+		#print("inTies", inTies)
+		#print([self.nodeOutputDataForUse(i[0], i[1]) for i in inTies])
+		outputData = [self.nodeOutputDataForUse(i[0], i[1]) for i in inTies]
+		return GraphData.combine(outputData)
 
 
 	def flowSources(self, node:ChimaeraNode)->list[ChimaeraNode]:

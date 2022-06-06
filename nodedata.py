@@ -22,6 +22,9 @@ class NodeDataDeltaAtom(DeltaAtom):
 class NodeDataTree(Tree):
 	"""why not"""
 	nodeName = Tree.TreeBranchDescriptor(NodeDataKeys.nodeName, create=True)
+	@classmethod
+	def _defaultCls(cls):
+		return NodeDataTree
 
 	@staticmethod
 	def createDataAndOverrideTrees(name:str, uid=None)->tuple[NodeDataTree, NodeDataTree]:
