@@ -91,6 +91,9 @@ class ChimaeraGraph(nx.MultiDiGraph):
 		return node.outputDataForUse(use)
 
 	# querying nodes by edges
+	# def _nodeEdgeMap(self, node: ChimaeraNode, edgeFn:T.Callable) -> dict[DataUse, list[tuple[DataUse, ChimaeraNode]]]:
+	#
+
 	def nodeInputMap(self, node:ChimaeraNode)->dict[DataUse, list[tuple[DataUse, ChimaeraNode]]]:
 		"""todo: add processing for edge indices here
 		leaves are tuples of [fromUse, node] - allowing item[0].outputDataForUse(item[1])
@@ -106,6 +109,19 @@ class ChimaeraGraph(nx.MultiDiGraph):
 			nodeMap[i] = nodeTies
 		return nodeMap
 
+	def nodeOutputMap(self, node:ChimaeraNode)->dict[DataUse, list[tuple[DataUse, ChimaeraNode]]]:
+		"""return the output nodes for uses"""
+		nodeEdges = self.out_edges([node], keys=True, data=True)
+		nodeMap = {}
+		for i in DataUse:
+			nodeTies = []
+			for edge in nodeEdges:
+				if edge[2] != i:
+					continue
+				nodeTies.append( (edge[1], edge[3]["toUse"]))
+			nodeMap[i] = nodeTies
+		return nodeMap
+
 	def incomingDataForUse(self, node:ChimaeraNode, use:DataUse)->GraphData:
 		"""gathers all incoming data from input nodes for given use"""
 		inTies = self.nodeInputMap(node)[use]
@@ -114,9 +130,11 @@ class ChimaeraGraph(nx.MultiDiGraph):
 		outputData = [self.nodeOutputDataForUse(i[0], i[1]) for i in inTies]
 		return GraphData.combine(outputData)
 
+	def sourceNodesForUse(self, node:ChimaeraNode, use:DataUse)->list[ChimaeraNode]:
+		return [i[1] for i in self.nodeInputMap(node)[use]]
 
-	def flowSources(self, node:ChimaeraNode)->list[ChimaeraNode]:
-		self.edges
+	def destNodesForUse(self, node:ChimaeraNode, use:DataUse)->list[ChimaeraNode]:
+		return [i[1] for i in self.nodeOutputMap(node)[use]]
 
 
 	def addReferenceToNode(self, baseNode:ChimaeraNode, name=None):

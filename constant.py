@@ -5,13 +5,13 @@ import typing as T
 dataKeyType = (str, T.Sequence[str], T.FrozenSet[str])
 
 
-
-
 class DataUse(Enum):
 	Params = "Params"
 	Flow = "Flow"
 	Structure = "Structure"
 	Creator = "Creator"
+	Tree = "Tree"
+	Anchor = "Anchor"
 
 
 class NodeDataKeys:
@@ -19,6 +19,7 @@ class NodeDataKeys:
 	paramTree = "params"
 	overrideTree = "override"
 	nodeName = "nodeName"
+	treeValue = "value"
 
 class NodeRefModes(Enum):
 	"""one to one match between member names and values"""

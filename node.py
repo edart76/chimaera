@@ -44,6 +44,7 @@ class ChimaeraNode(DataFacade):
 	validDataTypes = DataUse
 
 	name = NodeParamDescriptor(NodeDataKeys.nodeName)
+	NodeParamDescriptor = NodeParamDescriptor
 
 	uid : str = DataFacade.FacadeDescriptor("", getFn=lambda x : x.uid,
 	                                        objectName=NodeDataKeys.paramTree)
@@ -51,6 +52,7 @@ class ChimaeraNode(DataFacade):
 	nodeTypeId = 1
 
 	dataCls = NodeDataHolder
+
 
 
 	def __init__(self, semGraph:ChimaeraGraph, dataArgs:tuple[NodeDataTree, NodeDataTree]):
