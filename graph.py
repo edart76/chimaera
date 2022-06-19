@@ -11,8 +11,7 @@ from .graphdata import GraphData
 from .node import ChimaeraNode
 from .transform import TransformNode
 from .edgeset import EdgeSet, EdgeSetData
-from .lib.graphsignal import GraphDeltaSignalComponent
-from chimaera.lib.delta import GraphNodeDelta, GraphEdgeDelta
+from chimaera.lib.delta import GraphNodeDelta, GraphEdgeDelta, GraphDeltaSignalComponent, GraphDeltaTracker
 
 CREATED_BY_KEY = "createdBy" # key for edge to node that created this one
 
@@ -34,10 +33,7 @@ class ChimaeraGraph(nx.MultiDiGraph):
 	should an active node object be specific to an edge set?
 	may 2 active nodes point to the same node params?
 
-	Keep it simple for now -
-		ONE TreeEdgeSet for hierarchy,
-		ONE DependEdgeSet for referencing,
-		ONE DependEdgeSet for normal graph dependency?
+	edgeSet concept is cool but not really compatible with networkX
 
 	node evaluation goes like this:
 
@@ -49,10 +45,8 @@ class ChimaeraGraph(nx.MultiDiGraph):
 
 	def __init__(self):
 		super(ChimaeraGraph, self).__init__()
-		#self.nodeMap : dict[NodeDataHolder, ChimaeraNode] = {}
-		# self.edgeSetMap : dict[NodeData, SetNode] = {}
-		#self.datas : dict[str, NodeData]
 		self.signalComponent = GraphDeltaSignalComponent(self)
+		self.deltaTracker = GraphDeltaTracker()
 
 	def uidNodeMap(self)->dict[str, ChimaeraNode]:
 		return {i.uid : i for i in self}
@@ -64,7 +58,7 @@ class ChimaeraGraph(nx.MultiDiGraph):
 
 	def createNode(self, name:str, nodeCls=ChimaeraNode, add=True):
 		"""creates new node and params"""
-		dataTrees = NodeDataTree.createDataAndOverrideTrees(name)
+		dataTrees = NodeDataTree.createParamTree(name)
 		node = nodeCls(self, dataTrees)
 		if add:
 			self.addNode(node)
@@ -85,56 +79,55 @@ class ChimaeraGraph(nx.MultiDiGraph):
 		"""edge keys are always destination uses, since the graph mainly looks back"""
 		return self.add_edge(fromNode, toNode, key=toUse, fromUse=fromUse, toUse=toUse, inputIndex=inputIndex)
 
-	# getting node data - unsure of what to defer to node here
-	def nodeOutputDataForUse(self, node:ChimaeraNode, use:DataUse)->GraphData:
-		"""return a node's data for a given DataUse"""
-		return node.outputDataForUse(use)
 
 	# querying nodes by edges
 	# def _nodeEdgeMap(self, node: ChimaeraNode, edgeFn:T.Callable) -> dict[DataUse, list[tuple[DataUse, ChimaeraNode]]]:
 	#
 
-	def nodeInputMap(self, node:ChimaeraNode)->dict[DataUse, list[tuple[DataUse, ChimaeraNode]]]:
+	def nodeInputMap(self, node:ChimaeraNode)->dict[DataUse, dict[ DataUse, ChimaeraNode]]:
 		"""todo: add processing for edge indices here
-		leaves are tuples of [fromUse, node] - allowing item[0].outputDataForUse(item[1])
+		leaves are dicts of [fromUse, node] - allowing item[0].outputDataForUse(item[1])
 		"""
 		nodeEdges = self.in_edges([node], keys=True, data=True)
 		nodeMap = {}
 		for i in DataUse:
-			nodeTies = []
+			nodeTies = {}
 			for edge in nodeEdges:
 				if edge[2] != i:
 					continue
-				nodeTies.append( (edge[0], edge[3]["fromUse"]))
+				nodeTies[edge[3]["fromUse"]] = edge[0]
 			nodeMap[i] = nodeTies
 		return nodeMap
 
-	def nodeOutputMap(self, node:ChimaeraNode)->dict[DataUse, list[tuple[DataUse, ChimaeraNode]]]:
+	def nodeOutputMap(self, node:ChimaeraNode)->dict[DataUse, dict[ DataUse, ChimaeraNode]]:
 		"""return the output nodes for uses"""
 		nodeEdges = self.out_edges([node], keys=True, data=True)
 		nodeMap = {}
 		for i in DataUse:
-			nodeTies = []
+			nodeTies = {}
 			for edge in nodeEdges:
 				if edge[2] != i:
 					continue
-				nodeTies.append( (edge[1], edge[3]["toUse"]))
+				nodeTies[edge[3]["toUse"]] = edge[1]
 			nodeMap[i] = nodeTies
 		return nodeMap
+
+	# getting node data - unsure of what to defer to node here
+	def nodeOutputDataForUse(self, node:ChimaeraNode, use:DataUse)->GraphData:
+		"""return a node's data for a given DataUse"""
+		return node.outputDataForUse(use)
 
 	def incomingDataForUse(self, node:ChimaeraNode, use:DataUse)->GraphData:
 		"""gathers all incoming data from input nodes for given use"""
 		inTies = self.nodeInputMap(node)[use]
-		#print("inTies", inTies)
-		#print([self.nodeOutputDataForUse(i[0], i[1]) for i in inTies])
-		outputData = [self.nodeOutputDataForUse(i[0], i[1]) for i in inTies]
+		outputData = [self.nodeOutputDataForUse(inputNode, inputUse) for inputUse, inputNode in inTies.items()]
 		return GraphData.combine(outputData)
 
-	def sourceNodesForUse(self, node:ChimaeraNode, use:DataUse)->list[ChimaeraNode]:
-		return [i[1] for i in self.nodeInputMap(node)[use]]
+	def sourceNodesForUse(self, node:ChimaeraNode, use:DataUse)->set[ChimaeraNode]:
+		return set(self.nodeInputMap(node)[use].values())
 
-	def destNodesForUse(self, node:ChimaeraNode, use:DataUse)->list[ChimaeraNode]:
-		return [i[1] for i in self.nodeOutputMap(node)[use]]
+	def destNodesForUse(self, node:ChimaeraNode, use:DataUse)->set[ChimaeraNode]:
+		return set(self.nodeOutputMap(node)[use].values())
 
 
 	def addReferenceToNode(self, baseNode:ChimaeraNode, name=None):
@@ -168,5 +161,9 @@ class ChimaeraGraph(nx.MultiDiGraph):
 		"""fires when direct params changed on node -
 		won't work on references"""
 
+
+	# state, deltas and signals
+	# this is made mode cumbersome by needing to inherit from external type
+	# redefine superclass methods as "internals", redefine facade methods to emit deltas
 
 

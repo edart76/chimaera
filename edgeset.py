@@ -9,7 +9,7 @@ from .node import ChimaeraNode
 from .nodedata import NodeDataHolder
 
 if T.TYPE_CHECKING:
-	from .main import ChimaeraGraph
+	from .graph import ChimaeraGraph
 
 @dataclass
 class EdgeSetData(NodeDataHolder):
@@ -28,8 +28,8 @@ class EdgeSet(ChimaeraNode, Graph
 
 	nodeTypeId = 2
 
-	def __init__(self, semGraph:ChimaeraGraph, nodes:T.Sequence[ChimaeraNode]=()):
-		super(EdgeSet, self).__init__(semGraph)
+	def __init__(self, graph:ChimaeraGraph, nodes:T.Sequence[ChimaeraNode]=()):
+		super(EdgeSet, self).__init__(graph)
 		Graph.__init__(self)
 		#self.nodes : set[SetNode] = WeakSet(*nodes)
 		if nodes:
@@ -55,8 +55,8 @@ class EdgeSet(ChimaeraNode, Graph
 
 
 class DependEdgeSet(ChimaeraNode, Graph):
-	def __init__(self, semGraph:ChimaeraGraph, nodes:T.Sequence[ChimaeraNode]=()):
-		super(DependEdgeSet, self).__init__(semGraph)
+	def __init__(self, graph:ChimaeraGraph, nodes:T.Sequence[ChimaeraNode]=()):
+		super(DependEdgeSet, self).__init__(graph)
 		Graph.__init__(self)
 		#self.nodes : set[SetNode] = WeakSet(*nodes)
 		if nodes:

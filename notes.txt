@@ -22,4 +22,6 @@ if a node has a "input" input, it is a transformer?
 
 a node may only have a single "params" input, otherwise input order starts to matter
 
+eventually abstract even the reference to the node class itself into param data -
+each node params would hold a reference to the node class to use to operate on it
 

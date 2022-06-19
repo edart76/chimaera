@@ -39,7 +39,14 @@ class NodeDataTree(Tree):
 		overrideTree.lookupCreate = True
 		return dataTree, overrideTree
 
-
+	@staticmethod
+	def createParamTree(name:str, uid=None)->NodeDataTree:
+		"""return starting param tree for any chimaera node
+		todo: allow node classes to define their own default param layout"""
+		dataTree = NodeDataTree(name=NodeDataKeys.paramTree, treeUid=uid)
+		dataTree.lookupCreate = True
+		dataTree.nodeName = name
+		return dataTree
 
 @dataclass
 class NodeDataHolder(UidElement):

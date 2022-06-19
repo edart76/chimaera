@@ -8,7 +8,7 @@ import networkx as nx
 from weakref import WeakSet
 import typing as T
 if T.TYPE_CHECKING:
-	from .main import ChimaeraGraph
+	from .graph import ChimaeraGraph
 	from .transform import TransformNode
 
 from .graphdata import GraphData
@@ -54,19 +54,19 @@ class ChimaeraNode(DataFacade):
 	dataCls = NodeDataHolder
 
 
-
-	def __init__(self, semGraph:ChimaeraGraph, dataArgs:tuple[NodeDataTree, NodeDataTree]):
+	def __init__(self, graph:ChimaeraGraph, nodeParams:NodeDataTree):
 		super(ChimaeraNode, self).__init__()
-		self._dataObjects[NodeDataKeys.paramTree], \
-		self._dataObjects[NodeDataKeys.overrideTree] = dataArgs[0], dataArgs[1]
+		# self._dataObjects[NodeDataKeys.paramTree], \
+		# self._dataObjects[NodeDataKeys.overrideTree] = nodeParams[0], nodeParams[1]
+		self._dataObjects[NodeDataKeys.paramTree] = nodeParams
 
-		self.graph = semGraph
+		self.graph = graph
 		self.nodeEvaluated = Signal("nodeEvaluated")
 		self.dirty = False
 
 		self.paramsChanged = Signal()
 		# connect tree signals to node changed signal
-		for i in dataArgs:
+		for i in nodeParams:
 			for signal in i.signals():
 				signal.connect(self.paramsChanged)
 
@@ -144,7 +144,8 @@ class ChimaeraNode(DataFacade):
 			if existBranch.value == value:
 				return
 		# create override
-		self.overrideParams(key).value = value
+		#self.overrideParams(key).value = value
+		self.baseParams(key).value = value
 
 	def getParam(self, key:str, default:(None, Exception)=None, errorNotFound=True):
 		params = self.params()
@@ -161,7 +162,7 @@ class ChimaeraNode(DataFacade):
 		"""apply information in baseParams.override to dataToOverride
 		should act on holder's baseParams
 		"""
-		overrideData = overrideData or self.overrideParams
+		overrideData = overrideData or self.baseParams
 		return dataToOverride
 
 	def transform(self, inputGraphData: GraphData) -> GraphData:

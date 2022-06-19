@@ -5,7 +5,7 @@ import typing as T
 dataKeyType = (str, T.Sequence[str], T.FrozenSet[str])
 
 
-class DataUse(Enum):
+class DataUse(Enum): # later replace each use with class for easier extension
 	Params = "Params"
 	Flow = "Flow"
 	Structure = "Structure"
@@ -19,7 +19,7 @@ class NodeDataKeys:
 	paramTree = "params"
 	overrideTree = "override"
 	nodeName = "nodeName"
-	treeValue = "value"
+	treeValue = "nodeValue"
 
 class NodeRefModes(Enum):
 	"""one to one match between member names and values"""
