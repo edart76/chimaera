@@ -26,11 +26,11 @@ class TreeNode(ChimaeraNode, TreeFacade):
 
 	@property
 	def parent(self) ->TreeType:
-		return (self.graph.sourceNodesForUse(self, DataUse.Tree) or [None])[0]
+		return (self.graph().sourceNodesForUse(self, DataUse.Tree) or [None])[0]
 
 	@property
 	def branchMap(self) ->T.Dict[str, TreeType]:
-		nodes = self.graph.destNodesForUse(self, DataUse.Tree)
+		nodes = self.graph().destNodesForUse(self, DataUse.Tree)
 		return {i.name : i for i in nodes}
 
 	def setName(self, name:str):
@@ -40,8 +40,8 @@ class TreeNode(ChimaeraNode, TreeFacade):
 		self.value = val
 
 	def addChild(self, newBranch:TreeType) ->TreeType:
-		self.graph.addNode(newBranch)
-		self.graph.connectNodes(self, newBranch,
+		self.graph().addNode(newBranch)
+		self.graph().connectNodes(self, newBranch,
 		                        fromUse=DataUse.Tree, toUse=DataUse.Tree)
 		newBranch._setParent(self)
 		return newBranch

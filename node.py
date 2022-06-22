@@ -53,6 +53,13 @@ class ChimaeraNode(DataFacade):
 
 	dataCls = NodeDataHolder
 
+	@classmethod
+	def defaultParamTree(cls, name:str, uid=None)->NodeDataTree:
+		"""default parametre format for this type of node"""
+		dataTree = NodeDataTree(name="root", treeUid=uid)
+		dataTree.lookupCreate = True
+		dataTree.nodeName = name
+		return dataTree
 
 	def __init__(self, graph:ChimaeraGraph, nodeParams:NodeDataTree):
 		super(ChimaeraNode, self).__init__()
@@ -60,15 +67,21 @@ class ChimaeraNode(DataFacade):
 		# self._dataObjects[NodeDataKeys.overrideTree] = nodeParams[0], nodeParams[1]
 		self._dataObjects[NodeDataKeys.paramTree] = nodeParams
 
-		self.graph = graph
+		self._graph : ChimaeraGraph = None
+		self.setGraph(graph)
+
 		self.nodeEvaluated = Signal("nodeEvaluated")
 		self.dirty = False
 
 		self.paramsChanged = Signal()
 		# connect tree signals to node changed signal
-		for i in nodeParams:
-			for signal in i.signals():
-				signal.connect(self.paramsChanged)
+		for signal in nodeParams.signals():
+			signal.connect(self.paramsChanged)
+
+	def setGraph(self, graph:ChimaeraGraph):
+		self._graph = graph
+	def graph(self)->ChimaeraGraph:
+		return self._graph
 
 
 	@property
@@ -106,7 +119,7 @@ class ChimaeraNode(DataFacade):
 		# check if node has any direct inputs for params
 		if self.isReference():
 			# may be multiple inputs
-			refGraphData = self.graph.incomingDataForUse(self, DataUse.Params)
+			refGraphData = self.graph().incomingDataForUse(self, DataUse.Params)
 
 			resultTree = None
 			if len(refGraphData.nodeDatas) > 1:
@@ -123,8 +136,8 @@ class ChimaeraNode(DataFacade):
 	def outputFlowData(self)->GraphData:
 		"""run transformation on input data if defined, return it
 		if no input, return the node's param tree instead"""
-		if self.graph.nodeInputMap(self)[DataUse.Flow]:
-			incomingData = self.graph.incomingDataForUse(self, DataUse.Flow)
+		if self.graph().nodeInputMap(self)[DataUse.Flow]:
+			incomingData = self.graph().incomingDataForUse(self, DataUse.Flow)
 		else:
 			# by default we run the node's own transform on its own param tree if no data is given -
 			# I think this is inkeeping with expected behaviour of a transformer
@@ -188,21 +201,21 @@ class ChimaeraNode(DataFacade):
 		return inputData.copy()
 
 	def inputNodes(self) -> list[ChimaeraNode]:
-		return self.graph.predecessors(self)
+		return self.graph().predecessors(self)
 
 	def isReference(self) -> bool:
 		"""return True if this node has a live input to its parametres"""
-		return bool(self.graph.nodeInputMap(self)[DataUse.Params])
+		return bool(self.graph().nodeInputMap(self)[DataUse.Params])
 
 	def inputData(self, use:DataUse)->GraphData:
-		return self.graph.incomingDataForUse(self, use)
+		return self.graph().incomingDataForUse(self, use)
 
 	def eval(self)->GraphData:
 		"""Runs any transform operation on input data"""
 
 
 	def nodeValid(self):
-		return self.graph.nodeValid(self)
+		return self.graph().nodeValid(self)
 
 
 

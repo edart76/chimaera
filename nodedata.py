@@ -23,7 +23,7 @@ class NodeDataTree(Tree):
 	"""why not"""
 	nodeName = Tree.TreeBranchDescriptor(NodeDataKeys.nodeName, create=True)
 	@classmethod
-	def _defaultCls(cls):
+	def defaultBranchCls(cls):
 		return NodeDataTree
 
 	@staticmethod

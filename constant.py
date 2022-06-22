@@ -20,6 +20,7 @@ class NodeDataKeys:
 	overrideTree = "override"
 	nodeName = "nodeName"
 	treeValue = "nodeValue"
+	treeProperties = "nodeProperties"
 
 class NodeRefModes(Enum):
 	"""one to one match between member names and values"""

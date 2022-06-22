@@ -6,4 +6,5 @@ from .constant import *
 from .nodedata import NodeDataHolder
 from .graph import ChimaeraGraph
 from .node import ChimaeraNode
+from .graphtree import GraphTree
 

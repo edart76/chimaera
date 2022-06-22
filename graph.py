@@ -75,9 +75,9 @@ class ChimaeraGraph(nx.MultiDiGraph):
 	# connecting nodes
 	def connectNodes(self, fromNode:ChimaeraNode, toNode:ChimaeraNode,
 	                 fromUse=DataUse.Flow, toUse=DataUse.Flow,
-	                 inputIndex=None):
+	                 index=None):
 		"""edge keys are always destination uses, since the graph mainly looks back"""
-		return self.add_edge(fromNode, toNode, key=toUse, fromUse=fromUse, toUse=toUse, inputIndex=inputIndex)
+		return self.add_edge(fromNode, toNode, key=toUse, fromUse=fromUse, toUse=toUse, index=index)
 
 
 	# querying nodes by edges
