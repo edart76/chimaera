@@ -137,7 +137,7 @@ class ChimaeraGraph(nx.MultiDiGraph):
 
 	def createMultiReference(self, nodesToReference:T.Sequence[ChimaeraNode],
 	                         refNodeName="refGraph")->ChimaeraNode:
-		"""test for making multi references easier to handle -
+		"""show for making multi references easier to handle -
 		edges are added from all given nodes to refnode, if necessary
 		we can add attributes to identify these apart from normal references
 

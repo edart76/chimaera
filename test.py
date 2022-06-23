@@ -1,13 +1,13 @@
 
 from __future__ import annotations
-"""test cases for new graph system"""
+"""show cases for new graph system"""
 import unittest, pprint
 from matplotlib import pyplot as plt
 import networkx as nx
 from chimaera import ChimaeraGraph, ChimaeraNode, NodeDataHolder, DataUse
 
 class TestGraphTree(unittest.TestCase):
-	""" test for graph emulating basic tree """
+	""" show for graph emulating basic tree """
 
 	def setUp(self) -> None:
 		self.graph = ChimaeraGraph()

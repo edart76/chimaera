@@ -15,7 +15,9 @@ from tree.ui.libwidget.atomicproxywiget import AtomicProxyWidget
 import typing as T
 from chimaera import ChimaeraGraph, ChimaeraNode
 from chimaera.constant import DataUse
+from chimaera.ui import graphItemType
 from chimaera.ui.base import GraphicsItemChange
+from .graphitem import GraphItemDelegateAbstract
 
 if T.TYPE_CHECKING:
 	from chimaera.ui.scene import ChimaeraGraphScene
@@ -25,23 +27,35 @@ class SettingsProxy(QtWidgets.QGraphicsProxyWidget):
 
 
 class PlugDelegate(QtWidgets.QGraphicsEllipseItem):
-	"""basic circle with description of data use"""
+	"""basic circle with description of data use
+	this will NOT represent a full item in chimaera graph"""
 	def __init__(self, name:str, parent=None):
 		super(PlugDelegate, self).__init__(parent)
 		self.name = name
 		self.nameTag = QtWidgets.QGraphicsTextItem(self.name, self)
 		self.setRect(0, 0, 20, 20)
 
-class NodeDelegate(QtWidgets.QGraphicsItem):
+class NodeDelegate(GraphItemDelegateAbstract, QtWidgets.QGraphicsItem):
 	""" drawing for individual chimaera nodes
 
 	connection points for edges are consistent heights on node
+
 	 """
+
+	@classmethod
+	def delegatesForElements(cls, scene:ChimaeraGraphScene, itemPool:set[graphItemType]) ->T.Sequence[GraphItemDelegateAbstract]:
+		"""return basic node delegate for any nodes left over here"""
+		result = []
+		for i in set(itemPool):
+			if isinstance(i, ChimaeraNode):
+				result.append(cls(i))
+				itemPool.remove(i)
+		return result
 
 	def __init__(self, node:ChimaeraNode=None,  parent=None,
 	             ):
-		super(NodeDelegate, self).__init__(parent)
-		self.node = node
+		super(NodeDelegate, self).__init__(graphItems=[node])
+		QtWidgets.QGraphicsItem.__init__(self, parent=parent)
 		self.settingsProxy :SettingsProxy = None
 		self.settingsWidg : TreeWidget = None
 
@@ -70,6 +84,11 @@ class NodeDelegate(QtWidgets.QGraphicsItem):
 
 		self.makeConnections()
 
+
+	@property
+	def node(self)->ChimaeraNode:
+		return self.mainGraphElement()
+
 	def scene(self) -> ChimaeraGraphScene:
 		return super(NodeDelegate, self).scene()
 
@@ -79,6 +98,9 @@ class NodeDelegate(QtWidgets.QGraphicsItem):
 
 	def _onNameTagChanged(self, text:str):
 		self.node.name = text
+
+	def sync(self, *args, **kwargs):
+		self.syncFromNode()
 
 	def syncFromNode(self):
 		"""reset ui state to match that of node"""

@@ -1,12 +1,12 @@
 
 from __future__ import annotations
-"""test cases for new graph system"""
+"""show cases for new graph system"""
 import unittest, pprint
 
 from chimaera import ChimaeraGraph, ChimaeraNode, NodeDataHolder, DataUse, GraphTree
 
 class TestGraphTree(unittest.TestCase):
-	""" test for graph emulating basic tree """
+	""" show for graph emulating basic tree """
 
 	def setUp(self) -> None:
 		self.tree = GraphTree("rootTree")
@@ -24,6 +24,7 @@ class TestGraphTree(unittest.TestCase):
 
 		self.tree.lookupCreate = True
 		self.assertIn(self.tree("newBranch2"), newBranch.siblings)
+		self.assertIs(self.tree.graph(), self.tree("newBranch2"))
 
 
 

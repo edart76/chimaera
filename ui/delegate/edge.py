@@ -8,8 +8,10 @@ from treegraph.ui.style import Z_VAL_PIPE, PIPE_DEFAULT_COLOR, PIPE_STYLE_DEFAUL
 
 import typing as T
 from chimaera import ChimaeraGraph, ChimaeraNode, DataUse
+from chimaera.ui import graphItemType
 from chimaera.ui.delegate.node import NodeDelegate
 from chimaera.ui.base import GraphicsItemChange, dataColourMap
+from .graphitem import GraphItemDelegateAbstract
 
 if T.TYPE_CHECKING:
 	from chimaera.ui.scene import ChimaeraGraphScene
@@ -41,11 +43,27 @@ def paintGradientPath(path:QtWidgets.QGraphicsPathItem,
 		painter.drawLine(start, end)
 
 
-class EdgeDelegate(QtWidgets.QGraphicsPathItem):
+class EdgeDelegate(
+
+	QtWidgets.QGraphicsPathItem,
+	GraphItemDelegateAbstract
+):
 	"""tis a noble thing to be a bridge between knobs"""
 
+	@classmethod
+	def delegatesForElements(cls, scene:ChimaeraGraphScene, itemPool:set[graphItemType]) ->T.Sequence[GraphItemDelegateAbstract]:
+		"""return edge delegates for all graph edges"""
+		result = []
+		for i in set(itemPool):
+			if isinstance(i, tuple):
+				result.append(cls(i))
+				itemPool.remove(i)
+		return result
+
 	def __init__(self, edgeTuple:tuple[ChimaeraNode, ChimaeraNode, str]):
-		super(EdgeDelegate, self).__init__()
+		QtWidgets.QGraphicsPathItem.__init__(self, parent=None)
+		GraphItemDelegateAbstract.__init__(self, [edgeTuple])
+		#GraphItemDelegate.__init__(self, [edgeTuple], parent=None)
 		self.setZValue(Z_VAL_PIPE)
 		self.setAcceptHoverEvents(True)
 
@@ -74,7 +92,7 @@ class EdgeDelegate(QtWidgets.QGraphicsPathItem):
 
 	@property
 	def startDelegate(self)->NodeDelegate:
-		return self.scene().tiles[self.start]
+		return self.scene().tiles()[self.start]
 
 	def startUse(self)->DataUse:
 		return self.edgeData()["fromUse"]
@@ -85,7 +103,7 @@ class EdgeDelegate(QtWidgets.QGraphicsPathItem):
 
 	@property
 	def endDelegate(self) -> NodeDelegate:
-		return self.scene().tiles[self.end]
+		return self.scene().tiles()[self.end]
 
 	def endUse(self)->DataUse:
 		return self.edgeData()["toUse"]
@@ -133,6 +151,7 @@ class EdgeDelegate(QtWidgets.QGraphicsPathItem):
 		return path
 
 	def itemChange(self, change:QtWidgets.QGraphicsItem.GraphicsItemChange, value):
+		"""base QT method for this item changing"""
 		if self.scene():
 			self.scene().itemChanged.emit(GraphicsItemChange(self, change, value))
 		return super(EdgeDelegate, self).itemChange(change, value)

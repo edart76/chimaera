@@ -29,8 +29,10 @@ import networkx as nx
 from chimaera import ChimaeraGraph, ChimaeraNode
 from chimaera.lib.delta import GraphEdgeDelta, GraphNodeDelta
 from chimaera.ui.base import GraphicsItemChange
-from chimaera.ui.delegate import NodeDelegate, EdgeDelegate
+from chimaera.ui.delegate import GraphItemDelegateAbstract, NodeDelegate, EdgeDelegate
 from chimaera.lib.topology import orderNodes
+
+from chimaera.ui import graphItemType
 
 debugEvents = False
 
@@ -43,11 +45,19 @@ def randomPastel(seed):
 	return rgb
 
 class ChimaeraGraphScene(MouseDragScene):
-	"""graphics scene for interfacing with abstractgraph and ui
-	hook directly into abstractgraph tree signals
+	"""graphics scene for ChimaeraGraph
+	different specific views (tree node view, treeGraph node view) may define
+	their own drawing delegates - all should inherit from this
+
+	only top-level items are visible to scene - GraphDelegate items can change internally,
+	but if the element of a top-level item is deleted, remove that item
+
 	"""
 
-	delegateMap = {ChimaeraNode : NodeDelegate} #type:T.Dict[T.Type[ChimaeraNode] : T.Type[NodeDelegate]]
+	delegateMap = {ChimaeraNode : NodeDelegate} #type:T.Dict[T.Type[GraphItemDelegateAbstract] : T.Type[NodeDelegate]]
+
+	# set of delegate types that this particular scene or view may show
+	validDelegates = { NodeDelegate, EdgeDelegate }
 
 	itemChanged = QtCore.Signal(GraphicsItemChange)
 
@@ -56,10 +66,7 @@ class ChimaeraGraphScene(MouseDragScene):
 	             ):
 		super(ChimaeraGraphScene, self).__init__(parent)
 
-
-		self.tiles = {} #type: Dict[ChimaeraNode, NodeDelegate]
-		self.pipes = {} #type: Dict[tuple[ChimaeraNode, ChimaeraNode, str], EdgeDelegate]
-
+		self.graphDelegateItems : set[GraphItemDelegateAbstract] = set()
 
 		self.background_color = VIEWER_BG_COLOR
 		self.grid = VIEWER_GRID_OVERLAY
@@ -70,8 +77,8 @@ class ChimaeraGraphScene(MouseDragScene):
 
 	def setGraph(self, graph:ChimaeraGraph):
 		"""connect signals"""
-		graph.signalComponent.nodesChanged.connect(self.onNodesChanged)
-		graph.signalComponent.edgesChanged.connect(self.onEdgesChanged)
+		graph.signalComponent.nodesChanged.connect(self.onGraphElementsChanged)
+		graph.signalComponent.edgesChanged.connect(self.onGraphElementsChanged)
 		self.sync()
 
 	def parent(self) -> ChimaeraGraphWidget:
@@ -80,23 +87,73 @@ class ChimaeraGraphScene(MouseDragScene):
 	def graph(self)->ChimaeraGraph:
 		return self.parent().graph
 
+	def elementDelegateMap(self)->dict[graphItemType, GraphItemDelegateAbstract]:
+		"""return map of {graph element : drawing delegate}
+		for every singular thing in chimaera graph"""
+		itemMap = {}
+		for delegate in self.graphDelegateItems:
+			itemMap.update({subItem : delegate for subItem in delegate.graphItems})
+		return itemMap
+
+	def mainElementDelegateMap(self)->dict[graphItemType, GraphItemDelegateAbstract]:
+		"""return map of {graph element : drawing delegate}
+		for every singular thing in chimaera graph"""
+		itemMap = {}
+		for delegate in self.graphDelegateItems:
+			itemMap[delegate.mainGraphElement()] = delegate
+		return itemMap
+
+	def tiles(self)->dict[ChimaeraNode, NodeDelegate]:
+		return {element : delegate for element, delegate in self.elementDelegateMap().items() if isinstance(delegate, NodeDelegate)}
+	def pipes(self)->dict[tuple, EdgeDelegate]:
+		return {edge : delegate for edge, delegate in self.elementDelegateMap().items() if isinstance(delegate, EdgeDelegate)}
+
+	# drawing and item creation logic
+	def sortDelegateClsPriority(self)->list[T.Type[NodeDelegate]]:
+		"""may not be necessary, but sort the order in which items are passed to
+		delegate classes in order to be drawn"""
+		return list(self.validDelegates)
+
+	def generateItemsForGraphElements(self, elements:T.Sequence[graphItemType])->list[GraphItemDelegateAbstract]:
+		"""given elements of graph to sync with,
+		pass selection to successive delegate classes and return any
+		items generated"""
+		elementSet = set(elements)
+		result = []
+		for i in self.sortDelegateClsPriority():
+			newItems = i.delegatesForElements(scene=self, itemPool=elementSet)
+			result.extend(newItems)
+		return result
+
+	def addGraphItemDelegate(self, delegate:GraphItemDelegateAbstract):
+		"""add a uniform delegate type, connect its signals"""
+		self.graphDelegateItems.add(delegate)
+		self.itemChanged.connect(delegate.onSceneItemChange)
+		self.addItem(delegate)
+		delegate.sync()
+
+	def removeGraphItemDelegate(self, delegate:GraphItemDelegateAbstract):
+		self.graphDelegateItems.remove(delegate)
+		self.removeItem(delegate)
+
+
 
 	### region graph signal functions, direct match to tree signals
-	def onNodesChanged(self, delta:GraphNodeDelta):
-		"""match nodes to graph"""
-		print("on nodes changed")
-		for i in delta.added:
-			self.makeTile(i)
-		for i in delta.removed:
-			self.deleteTile(i)
+	def onGraphElementsChanged(self, delta:GraphNodeDelta):
+		"""called when graph nodes or edges changed, updates visual
+		elements"""
+		# add any new elements
+		items = self.generateItemsForGraphElements(delta.added)
+		for i in items:
+			self.addGraphItemDelegate(i)
 
-	def onEdgesChanged(self, delta:GraphEdgeDelta):
-		"""called when an edge is created or dereferenced in the graph"""
-		print("on edges changed")
-		for i in delta.added:
-			self.addEdge(i)
+		# filter any removed elements to delete delegates
 		for i in delta.removed:
-			self.deletePipe(i)
+			# check if removed graph element is a main one for any delegates
+			if i in self.mainElementDelegateMap():
+				# if so, remove it
+				self.removeGraphItemDelegate(
+					self.mainElementDelegateMap()[i])
 
 
 	@classmethod
@@ -119,78 +176,17 @@ class ChimaeraGraphScene(MouseDragScene):
 		use until we need more targeted processing"""
 		self.clear()
 		# add node delegates
-		for node in self.graph().nodes:
-			self.addTile(node)
+		nodeDelta = GraphNodeDelta(added=set(self.graph().nodes))
+		self.onGraphElementsChanged(nodeDelta)
+
 		# add edge delegates
-		print("graph edges", self.graph().edges, tuple(self.graph().edges))
-		for edge in tuple(self.graph().edges):
-			self.addEdge(tuple(edge))
+		edgeDelta = GraphEdgeDelta(added=set(self.graph().edges))
+		self.onGraphElementsChanged(edgeDelta)
+
 		self.layoutTiles()
-
-	def addEdge(self, edge:tuple[ChimaeraNode, ChimaeraNode, str])->EdgeDelegate:
-		edgeDelegate = EdgeDelegate(edge)
-		self.pipes[edge] = edgeDelegate
-		self.addItem(edgeDelegate)
-		print("edge", edgeDelegate)
-		self.itemChanged.connect(edgeDelegate.onSceneItemChange)
-		edgeDelegate.sync()
-		return edgeDelegate
-
-
-
-	def addTile(self, node:ChimaeraNode)->NodeDelegate:
-		if node in self.tiles:
-			return self.tiles[node]
-		delegate = self.makeTile(node)
-		self.tiles[node] = delegate
-		self.addItem(delegate)
-		self.itemChanged.connect(delegate.onSceneItemChange)
-		return delegate
-
-	def makeTile(self, node:ChimaeraNode=None,
-	             pos:Union[
-		             QtCore.QPoint, QtCore.QPointF, None]=None,
-	             )->NodeDelegate:
-		if isinstance(self.tiles.get(node), NodeDelegate):
-			raise RuntimeError("added node already in scene")
-
-		delegateCls = self.delegateForNode(node)
-
-		tile = delegateCls(node, parent=None
-		                   )
-		self.addItem(tile)
-
-		if pos is None:
-			pos = QtCore.QPointF(random.random(), random.random())
-
-		if isinstance(pos, (QtCore.QPointF, QtCore.QPoint)):
-			tile.setPos(pos)
-		else:
-			tile.setPos(*pos)
-		self.tiles[node] = tile
-		#self.addItem(tile.settingsProxy)
-		self.relaxItems([tile], iterations=2)
-		return tile
-
-	# def addEdgePipe(self, edge:=None):
-	# 	"""can only be done with an existing abstractEdge"""
-	# 	if debugEvents: print("scene addEdgePipe")
-	# 	if edge:
-	# 		start = self.tiles[edge.source[0]].knobs[
-	# 			edge.source[1].stringAddress()]
-	# 		end = self.tiles[edge.dest[0]].knobs[
-	# 			edge.dest[1].stringAddress()]
-	# 		pipe = EdgeDelegate(start=start, end=end, edge=edge)
-	#
-	# 		self.pipes[edge] = pipe
-	#
-	# 		self.addPipe(pipe)
-	#
-	# 		return pipe
 
 	# def layoutNodes(self, nodes:list[NodeDelegate]):
 	# 	"""moves around given nodes to avoid intersections (if possible)"""
-
 
 
 	# def clearSelectionAttr(self):
@@ -199,7 +195,7 @@ class ChimaeraGraphScene(MouseDragScene):
 	def onSceneSelectionChanged(self, *args, **kwargs):
 		"""passed no arguments, just fires every change
 		iterate through nodes - call the selected signal on each"""
-		for i in self.tiles.values():
+		for i in self.tiles().values():
 			i.onSceneSelectionChanged()
 
 	def onDeleteCalled(self):
@@ -231,26 +227,26 @@ class ChimaeraGraphScene(MouseDragScene):
 	def deleteTile(self, tile:(NodeDelegate, ChimaeraNode)):
 		# check if tile has a visual item - if not, return
 		if isinstance(tile, ChimaeraNode):
-			if tile not in self.tiles.keys():
+			if tile not in self.tiles().keys():
 				return
-			tile = self.tiles[tile]
+			tile = self.tiles()[tile]
 
 		# delete any necessary edges
-		for k, v in self.pipes.items():
+		for k, v in self.pipes().items():
 			if tile.node in k:
 				self.deletePipe(v)
-		self.tiles.pop(tile.node)
+		self.tiles().pop(tile.node)
 		self.removeItem(tile)
 		self.update()
 
 
 	def deletePipe(self, pipe:(EdgeDelegate, tuple[ChimaeraNode, ChimaeraNode, str])):
 		if not isinstance(pipe, EdgeDelegate):
-			if not pipe in self.pipes.keys():
+			if not pipe in self.pipes().keys():
 				return
-			pipe = self.pipes[pipe]
+			pipe = self.pipes()[pipe]
 		if debugEvents: print("scene deletePipe")
-		self.pipes.pop(pipe.edgeTuple)
+		self.pipes().pop(pipe.edgeTuple)
 		self.removeItem(pipe)
 		self.update()
 		# i never want to tipe pipe
@@ -291,19 +287,19 @@ class ChimaeraGraphScene(MouseDragScene):
 
 
 		"""
-		tiles = tiles or set(self.tiles.values())
+		tiles = tiles or set(self.tiles().values())
 		nodes = set(i.node for i in tiles)
 		islands = nx.strongly_connected_components(self.graph())
 		for index, island in enumerate(islands):
-			print(self.graph().nodes)
 			ordered = orderNodes(self.graph(), island)
 			# only x for now
-			baseTile = self.tiles[ordered[0]]
+
+			baseTile = self.tiles()[ordered[0]]
 			separation = 75
 			baseX = baseTile.pos().x() + baseTile.sceneBoundingRect().width() + separation
 			x = baseX
 			for i in ordered[1:]:
-				tile = self.tiles[i]
+				tile = self.tiles()[i]
 				tile.setX(x)
 				x += tile.sceneBoundingRect().width() + separation
 		#self.updatePipePaths(tiles)
@@ -320,13 +316,13 @@ class ChimaeraGraphScene(MouseDragScene):
 	def serialiseUi(self, graphData):
 		"""adds ui information to serialised output from graph
 		no idea where better to put this"""
-		for node, tile in self.tiles.items():
+		for node, tile in self.tiles().items():
 			graphData["nodes"][node.uid]["ui"] = tile.serialise()
 
 	def regenUi(self, graphData):
 		"""reapplies saved ui information to tiles"""
 		for uid, info in graphData["nodes"].items():
 			node = self.graph.nodeFromUID(uid)
-			tile = self.tiles[node]
+			tile = self.tiles()[node]
 			tile.setPos(QtCore.QPointF(*info["ui"]["pos"]))
 

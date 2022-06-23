@@ -20,6 +20,7 @@ from .node import ChimaeraNode
 #if T.TYPE_CHECKING:
 from .graph import ChimaeraGraph
 
+TreeType = T.TypeVar("TreeType", bound="GraphTree") # type of the current class
 
 class GraphTree(TreeInterface, ChimaeraNode):
 	"""wrapping chimaera node and its relatives in tree syntax"""
