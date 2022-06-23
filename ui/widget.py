@@ -32,6 +32,7 @@ class ChimaeraGraphWidget(QtWidgets.QWidget):
 		self.graph = graph
 		self.scene.setGraph(graph)
 
+def show():
 
 	from tree.test.constant import midTree
 	import sys
