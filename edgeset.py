@@ -1,15 +1,13 @@
 from __future__ import annotations
-import networkx as nx
 import typing as T
 from dataclasses import dataclass, field
-from weakref import WeakSet, WeakKeyDictionary, proxy
-from networkx import Graph, DiGraph, MultiDiGraph
+from networkx import Graph
 
-from .node import ChimaeraNode
-from .nodedata import NodeDataHolder
+from chimaera.core.node import ChimaeraNode
+from chimaera.core.nodedata import NodeDataHolder
 
 if T.TYPE_CHECKING:
-	from .graph import ChimaeraGraph
+	from chimaera.core.graph import ChimaeraGraph
 
 @dataclass
 class EdgeSetData(NodeDataHolder):

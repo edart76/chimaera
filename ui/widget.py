@@ -38,6 +38,9 @@ def show():
 	import sys
 	from tree.lib.constant import UI_PROPERTY_KEY
 	from tree.ui.atomicwidget import AtomicWidgetParams, AtomicWidgetType
+
+
+
 	app = QtWidgets.QApplication(sys.argv)
 	win = QtWidgets.QMainWindow()
 

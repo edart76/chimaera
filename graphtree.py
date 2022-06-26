@@ -13,12 +13,11 @@ import typing as T
 from tree import TreeInterface, TreeType
 from tree.lib.sequence import firstOrNone
 
-from .constant import NodeDataKeys, NodeRefModes, DataUse
-from .nodedata import NodeDataTree
-from .graphdata import GraphData
-from .node import ChimaeraNode
+from .constant import NodeDataKeys, DataUse
+from chimaera.core.nodedata import NodeDataTree
+from chimaera.core.node import ChimaeraNode
 #if T.TYPE_CHECKING:
-from .graph import ChimaeraGraph
+from chimaera.core.graph import ChimaeraGraph
 
 TreeType = T.TypeVar("TreeType", bound="GraphTree") # type of the current class
 
@@ -47,7 +46,7 @@ class GraphTree(TreeInterface, ChimaeraNode):
 
 		# coupled dependency here to allow creation of trees in isolation
 		# can remove if needed
-		from .graph import ChimaeraGraph
+		from chimaera.core.graph import ChimaeraGraph
 
 		graph = graph or ChimaeraGraph()
 		nodeParams = nodeParams or self.defaultParamTree(name, uid=treeUid)
@@ -109,20 +108,22 @@ class GraphTree(TreeInterface, ChimaeraNode):
 		"""single function to connect tree nodes uniquely
 		this might be better off in a lib or something"""
 		graph = parentNode.graph()
-		oldParent = childNode._parent
-		if oldParent is not None:
-			# remove existing edge
-			graph.remove_edge(oldParent, childNode, key=DataUse.Tree)
+		if graph is childNode.graph():
+			oldParent = childNode._parent
+			if oldParent is not None:
+				# remove existing edge
+				graph.remove_edge(oldParent, childNode, key=DataUse.Tree)
 		# add new edge
 		graph.connectNodes(parentNode, childNode,
 		                   fromUse=DataUse.Tree, toUse=DataUse.Tree,
 		                   index=newIndex)
-		#graph.add_edge(parentNode, childNode, key=DataUse.Tree, index=newIndex)
+
 
 	@property
 	def branchMap(self)-> dict[str, TreeType]:
 		"""collect child nodes from graph"""
-		nodes = self.graph().destNodesForUse(self, DataUse.Tree)
+		#nodes = self.graph().destNodesForUse(self, DataUse.Tree)
+		nodes = self.graph().nodeOutputsFromUse(self, fromUse=DataUse.Tree, includeToUse=False)
 		# sort by edge indices
 		sortedNodes = []
 		edges = self.graph().edges
@@ -145,6 +146,7 @@ class GraphTree(TreeInterface, ChimaeraNode):
 		indexPool = sorted(outEdges, key="index")
 		for i, val in enumerate(indexPool):
 			val["index"] = i
+
 
 	def _addChild(self, newBranch:GraphTree, index:int) ->TreeType:
 		"""add node to graph if necessary

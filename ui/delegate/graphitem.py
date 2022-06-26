@@ -32,6 +32,8 @@ class GraphItemDelegateAbstract:
 	the logic part and the drawing part still
 	 """
 
+	delegatePriority = 0 #zero is lowest, any higher will be evaluated first
+
 	def __init__(self, graphItems:T.Sequence[graphItemType]=None, # parent=None,
 	             ):
 		self.graphItems = list(graphItems)

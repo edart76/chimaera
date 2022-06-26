@@ -155,21 +155,23 @@ class ChimaeraGraphScene(MouseDragScene):
 				self.removeGraphItemDelegate(
 					self.mainElementDelegateMap()[i])
 
+	# delegate plugin system now slightly different, no longer guaranteed one to one
+	# between delegates and node classes
 
-	@classmethod
-	def registerNodeDelegate(cls, nodeCls, delegateCls):
-		"""used to register custom node drawing class"""
-		cls.delegateMap[nodeCls] = delegateCls
-
-	@classmethod
-	def delegateForNode(cls, node:ChimaeraNode)->T.Type[NodeDelegate]:
-		"""look up the nearest matching delegate for
-		given node"""
-		result = superClassLookup(cls.delegateMap, node)
-		if result is None:
-			raise RuntimeError("No drawing delegate found for {} or in {}".format(
-				type(node), type(node).__mro__	))
-		return result
+	# @classmethod
+	# def registerNodeDelegate(cls, nodeCls, delegateCls):
+	# 	"""used to register custom node drawing class"""
+	# 	cls.delegateMap[nodeCls] = delegateCls
+	#
+	# @classmethod
+	# def delegateForNode(cls, node:ChimaeraNode)->T.Type[NodeDelegate]:
+	# 	"""look up the nearest matching delegate for
+	# 	given node"""
+	# 	result = superClassLookup(cls.delegateMap, node)
+	# 	if result is None:
+	# 		raise RuntimeError("No drawing delegate found for {} or in {}".format(
+	# 			type(node), type(node).__mro__	))
+	# 	return result
 
 	def sync(self):
 		"""fully clears and resets scene - may be costly

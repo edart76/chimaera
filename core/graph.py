@@ -6,11 +6,12 @@ import typing as T
 from tree.lib.sequence import flatten
 
 from .nodedata import NodeDataHolder, NodeDataTree
-from .constant import NodeDataKeys, DataUse
+from chimaera.constant import NodeDataKeys, DataUse
 from .graphdata import GraphData
 from .node import ChimaeraNode
-from .transform import TransformNode
-from .edgeset import EdgeSet, EdgeSetData
+from collections import defaultdict
+from chimaera.transform import TransformNode
+from chimaera.edgeset import EdgeSet, EdgeSetData
 from chimaera.lib.delta import GraphNodeDelta, GraphEdgeDelta, GraphDeltaSignalComponent, GraphDeltaTracker
 
 CREATED_BY_KEY = "createdBy" # key for edge to node that created this one
@@ -51,15 +52,21 @@ class ChimaeraGraph(nx.MultiDiGraph):
 	def uidNodeMap(self)->dict[str, ChimaeraNode]:
 		return {i.uid : i for i in self}
 
+	def nameNodeMap(self)->dict[str, ChimaeraNode]:
+		return {i.nodeName : i for i in self.nodes}
+
+	def nodeNames(self)->list[str]:
+		return list(sorted(self.nameNodeMap().keys()))
+
 	def node(self, fromId:(NodeDataTree, str, ChimaeraNode))->ChimaeraNode:
 		"""retrieve a node"""
 		uid = fromId if isinstance(fromId, str) else fromId.uid
-		return self.uidNodeMap()[uid]
+		return self.uidNodeMap().get(uid) or self.nameNodeMap().get(fromId)
 
 	def createNode(self, name:str, nodeCls=ChimaeraNode, add=True):
 		"""creates new node and params"""
-		dataTrees = NodeDataTree.createParamTree(name)
-		node = nodeCls(self, dataTrees)
+		dataTrees = nodeCls.defaultParamTree(name=name) or NodeDataTree.createParamTree(name)
+		node = nodeCls(self, nodeParams=dataTrees)
 		if add:
 			self.addNode(node)
 		return node
@@ -104,13 +111,38 @@ class ChimaeraGraph(nx.MultiDiGraph):
 		nodeEdges = self.out_edges([node], keys=True, data=True)
 		nodeMap = {}
 		for i in DataUse:
+			nodeSet = set()
 			nodeTies = {}
 			for edge in nodeEdges:
 				if edge[2] != i:
 					continue
+
 				nodeTies[edge[3]["toUse"]] = edge[1]
 			nodeMap[i] = nodeTies
 		return nodeMap
+
+	def nodeOutputsFromUse(self, node:ChimaeraNode, fromUse:DataUse,
+	                       includeToUse=True)->(list[ChimaeraNode], dict[DataUse, list[ChimaeraNode]]):
+		"""returns nodes drawing from this node, for the given use
+		if includeToUse, result is a dict with keys of ToUse,
+		otherwise just a list
+		return { toUse: set(nodes) }"""
+		nodeEdges = self.out_edges([node], keys=True, data=True)
+		if includeToUse:
+			result = defaultdict(set)
+			for sourceNode, destNode, toUse, edgeData in nodeEdges:
+				if edgeData["fromUse"] != fromUse:
+					continue
+				result[toUse].add(destNode)
+		else:
+			result = []
+			for sourceNode, destNode, toUse, edgeData in nodeEdges:
+				if edgeData["fromUse"] != fromUse:
+					continue
+				result.append(destNode)
+		return result
+
+
 
 	# getting node data - unsure of what to defer to node here
 	def nodeOutputDataForUse(self, node:ChimaeraNode, use:DataUse)->GraphData:

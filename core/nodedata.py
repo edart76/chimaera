@@ -21,7 +21,7 @@ class NodeDataDeltaAtom(DeltaAtom):
 
 class NodeDataTree(Tree):
 	"""why not"""
-	nodeName = Tree.TreeBranchDescriptor(NodeDataKeys.nodeName, create=True)
+	nodeName = Tree.TreeBranchDescriptor(NodeDataKeys.nodeName, create=True, useValue=True)
 	@classmethod
 	def defaultBranchCls(cls):
 		return NodeDataTree

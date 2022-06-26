@@ -8,7 +8,7 @@ from tree import Signal
 
 if T.TYPE_CHECKING:
 	from chimaera import ChimaeraNode
-	from chimaera.graph import ChimaeraGraph
+	from chimaera.core.graph import ChimaeraGraph
 from tree.lib.delta import DeltaAtom, DeltaTracker
 
 
@@ -85,9 +85,6 @@ class GraphSignalContext:
 		self.component.unPauseDeltaGathering()
 		if exc_type is not None:
 			raise exc_type
-
-
-""""""
 
 
 class GraphDeltaSignalComponent:

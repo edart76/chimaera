@@ -3,8 +3,10 @@
 """
 
 from .constant import *
-from .nodedata import NodeDataHolder
-from .graph import ChimaeraGraph
-from .node import ChimaeraNode
+from .core.node import ChimaeraNode
+from .core.graph import ChimaeraGraph
 from .graphtree import GraphTree
+from .core.nodedata import NodeDataTree
+from .core.graphdata import GraphData
+
 

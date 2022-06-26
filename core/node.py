@@ -9,13 +9,13 @@ from weakref import WeakSet
 import typing as T
 if T.TYPE_CHECKING:
 	from .graph import ChimaeraGraph
-	from .transform import TransformNode
+	from chimaera.transform import TransformNode
 
 from .graphdata import GraphData
 from .nodedata import NodeDataHolder, NodeDataTree
 from chimaera.constant import NodeDataKeys, DataUse
 
-from tree.lib.object import DataFacade, UidElement
+from tree.lib.object import DataFacade, UidElement, PostInitMixin
 from tree import Signal
 
 class NodeParamDescriptor:
@@ -217,7 +217,9 @@ class ChimaeraNode(DataFacade):
 	def nodeValid(self):
 		return self.graph().nodeValid(self)
 
-
+	def __postInit__(self):
+		"""run any post init code after subclassed inits are complete"""
+		pass
 
 
 
