@@ -19,6 +19,13 @@ class PlugNode( GraphTree):
 		self.inPlug = PlugTree(INPUT_NAME)
 		self.outPlug = PlugTree(OUTPUT_NAME)
 
+	def syncPlugs(self):
+		"""run after settings are defined / loaded - this method should populate
+		input and output plugs based on current state of node
+		externally will be wrapped in graph transaction, so deleting / regenerating
+		is fine"""
+		pass
+
 
 	def containedPlugEdges(self)->list[tuple]:
 		"""return all edges contained between this node and its plugs"""

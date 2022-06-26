@@ -26,18 +26,6 @@ class NodeDataTree(Tree):
 	def defaultBranchCls(cls):
 		return NodeDataTree
 
-	@staticmethod
-	def createDataAndOverrideTrees(name:str, uid=None)->tuple[NodeDataTree, NodeDataTree]:
-		"""return starting tuple of (params tree, override tree)
-		for any chimaera node"""
-		dataTree = NodeDataTree(name=NodeDataKeys.paramTree, treeUid=uid)
-		dataTree.lookupCreate = True
-		dataTree.nodeName = name
-
-		# uid is unimportant for override tree
-		overrideTree = NodeDataTree(name=NodeDataKeys.overrideTree)
-		overrideTree.lookupCreate = True
-		return dataTree, overrideTree
 
 	@staticmethod
 	def createParamTree(name:str, uid=None)->NodeDataTree:

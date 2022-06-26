@@ -4,13 +4,15 @@ from __future__ import annotations
 import pprint
 from matplotlib import pyplot as plt
 import networkx as nx
-from chimaera import ChimaeraGraph, ChimaeraNode, NodeDataHolder, DataUse
+from chimaera import ChimaeraGraph, ChimaeraNode
 
 
 if __name__ == '__main__':
-	graph = ChimaeraGraph()
-	graph.createNode("A")
-	graph.createNode("B")
-	graph.createNode("C")
+	# graph = ChimaeraGraph()
+	# graph.createNode("A")
+	# graph.createNode("B")
+	# graph.createNode("C")
+	#
+	# pprint.pprint(tuple(graph.nodes))
+	print(ChimaeraNode.mro())
 
-	pprint.pprint(tuple(graph.nodes))

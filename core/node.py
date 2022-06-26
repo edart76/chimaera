@@ -10,13 +10,16 @@ import typing as T
 if T.TYPE_CHECKING:
 	from .graph import ChimaeraGraph
 	from chimaera.transform import TransformNode
+from tree import Tree
+
+from tree.lib.object import DataFacade, UidElement, PostInitMixin
+from tree import Signal
+
+
 
 from .graphdata import GraphData
 from .nodedata import NodeDataHolder, NodeDataTree
 from chimaera.constant import NodeDataKeys, DataUse
-
-from tree.lib.object import DataFacade, UidElement, PostInitMixin
-from tree import Signal
 
 class NodeParamDescriptor:
 	"""descriptor for values that can be read and set from node params -
@@ -31,7 +34,8 @@ class NodeParamDescriptor:
 		instance.setParam(self.key, value)
 
 
-class ChimaeraNode(DataFacade):
+class ChimaeraNode(DataFacade, #PostInitMixin
+                   ):
 	"""active node object
 
 	ONLY a chimaeraNode object can BE REFERENCED,
@@ -55,7 +59,11 @@ class ChimaeraNode(DataFacade):
 
 	@classmethod
 	def defaultParamTree(cls, name:str, uid=None)->NodeDataTree:
-		"""default parametre format for this type of node"""
+		"""default parametre format for this type of node
+		for now this will remain a class method - until we meet a case
+		that it restricts I'm fine with it,
+		and it prevents any messing around with half-initialised node objects
+		"""
 		dataTree = NodeDataTree(name="root", treeUid=uid)
 		dataTree.lookupCreate = True
 		dataTree.nodeName = name
@@ -63,8 +71,6 @@ class ChimaeraNode(DataFacade):
 
 	def __init__(self, graph:ChimaeraGraph, nodeParams:NodeDataTree):
 		super(ChimaeraNode, self).__init__()
-		# self._dataObjects[NodeDataKeys.paramTree], \
-		# self._dataObjects[NodeDataKeys.overrideTree] = nodeParams[0], nodeParams[1]
 		self._dataObjects[NodeDataKeys.paramTree] = nodeParams
 
 		self._graph : ChimaeraGraph = None
@@ -78,18 +84,31 @@ class ChimaeraNode(DataFacade):
 		for signal in nodeParams.signals():
 			signal.connect(self.paramsChanged)
 
+		# action hierarchy for context menu - this at least won't be instanced
+		self.baseActionTree = Tree(name="actions") #type:Tree[str, partial]
+		self.baseActionTree.lookupCreate = True
+
+
+	# def __postInit__(self):
+	# 	"""run any post init code after subclassed inits are complete"""
+	# 	pass
+
 	def setGraph(self, graph:ChimaeraGraph):
 		self._graph = graph
 	def graph(self)->ChimaeraGraph:
 		return self._graph
 
+	@classmethod
+	def create(cls, name:str, uid=None)->ChimaeraNode:
+		"""create a new node of this type"""
+		nodeParams = cls.defaultParamTree(name, uid)
+		return cls(name, nodeParams)
 
 	@property
 	def baseParams(self)->NodeDataTree:
+		"""return param tree before any composition or resolving is done on it"""
 		return self.dataObject(NodeDataKeys.paramTree)
-	@property
-	def overrideParams(self)->NodeDataTree:
-		return self.dataObject(NodeDataKeys.overrideTree)
+
 
 	def __hash__(self):
 		return self.baseParams.__hash__()
@@ -109,6 +128,8 @@ class ChimaeraNode(DataFacade):
 			outGraphData = GraphData(dataTrees)
 		elif use == DataUse.Flow:
 			outGraphData = self.outputFlowData()
+		else:
+			outGraphData = GraphData()
 		return outGraphData
 
 	def params(self)->NodeDataTree:
@@ -216,12 +237,6 @@ class ChimaeraNode(DataFacade):
 
 	def nodeValid(self):
 		return self.graph().nodeValid(self)
-
-	def __postInit__(self):
-		"""run any post init code after subclassed inits are complete"""
-		pass
-
-
 
 
 

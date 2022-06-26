@@ -4,7 +4,7 @@ from weakref import WeakSet
 import typing as T
 
 from tree.lib.sequence import flatten
-
+from tree.lib.uid import getReadableUid
 from .nodedata import NodeDataHolder, NodeDataTree
 from chimaera.constant import NodeDataKeys, DataUse
 from .graphdata import GraphData
@@ -48,6 +48,9 @@ class ChimaeraGraph(nx.MultiDiGraph):
 		super(ChimaeraGraph, self).__init__()
 		self.signalComponent = GraphDeltaSignalComponent(self)
 		self.deltaTracker = GraphDeltaTracker()
+
+		# single map to store all of nodes' actual data
+		self.dataStore : dict[str, dict[DataUse, NodeDataTree]] = defaultdict(dict)
 
 	def uidNodeMap(self)->dict[str, ChimaeraNode]:
 		return {i.uid : i for i in self}
@@ -193,9 +196,9 @@ class ChimaeraGraph(nx.MultiDiGraph):
 		"""fires when direct params changed on node -
 		won't work on references"""
 
+	# data storage
+	def serialise(self)->dict:
+		"""return a dict of all data in the graph"""
+		baseData = self.dataStore
 
-	# state, deltas and signals
-	# this is made mode cumbersome by needing to inherit from external type
-	# redefine superclass methods as "internals", redefine facade methods to emit deltas
-
-
+		return baseData

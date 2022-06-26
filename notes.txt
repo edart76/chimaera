@@ -25,6 +25,18 @@ a node may only have a single "params" input, otherwise input order starts to ma
 eventually abstract even the reference to the node class itself into param data -
 each node params would hold a reference to the node class to use to operate on it
 
+consider wrapping transactions as context managers for things like mutators or conforming
+plug arrays - only on transaction end, gather deltas and fire signals
+allows nodes with matching uids to be regenerated in place
+
+also absolutely necessary to replace directly contained nodes with uids, even if it's a hassle
+
+
+in rigging we find the case of nodes needing to store arbitrary data across serialisations -
+store the result of all data transfers in a separate map, indexed by uid
+
+IF nodes are defined entirely by data, and data is stored separately to be robust to regenerating nodes, then surely it makes more sense to track DATA in deltas, and not NODES?
+Edges would then also necessarily be reduced to uids, and not full node objects
 
 
 for ui, going with more signal-based approach lets us delegate even more functionality

@@ -187,3 +187,29 @@ class GraphDeltaSignalComponent:
 					self.emitDelta(edgeDelta)
 			return baseResult
 		return wrapperFn
+
+
+class GraphTransaction:
+	"""get node state either side of block - then extract deltas
+	might be a better option to compare serialised state of nodes and edges -
+	more sensitive to deep state changes"""
+	def __init__(self, graph:ChimaeraGraph):
+		self.graph = graph
+		self.baseNodeSet : set[ChimaeraNode] = set()
+		self.baseEdgeSet : set[tuple] = set()
+
+	def __enter__(self):
+		self.baseNodeSet = self.graph.signalComponent.gatherNodeSet(self.graph)
+		self.baseEdgeSet = self.graph.signalComponent.gatherEdgeSet(self.graph)
+		self.graph.signalComponent.pauseDeltaGathering()
+
+	def __exit__(self, exc_type, exc_val, exc_tb):
+		if exc_type is not None:
+			raise exc_type
+
+		newNodeSet = self.graph.signalComponent.gatherNodeSet(self.graph)
+		newEdgeSet = self.graph.signalComponent.gatherEdgeSet(self.graph)
+
+
+		self.graph.signalComponent.unPauseDeltaGathering()
+

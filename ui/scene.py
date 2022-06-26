@@ -112,7 +112,7 @@ class ChimaeraGraphScene(MouseDragScene):
 	def sortDelegateClsPriority(self)->list[T.Type[NodeDelegate]]:
 		"""may not be necessary, but sort the order in which items are passed to
 		delegate classes in order to be drawn"""
-		return list(self.validDelegates)
+		return list(sorted(self.validDelegates, key=lambda x: x.delegatePriority, reverse=True))
 
 	def generateItemsForGraphElements(self, elements:T.Sequence[graphItemType])->list[GraphItemDelegateAbstract]:
 		"""given elements of graph to sync with,
