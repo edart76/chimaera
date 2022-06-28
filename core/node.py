@@ -231,8 +231,10 @@ class ChimaeraNode(DataFacade, #PostInitMixin
 	def inputData(self, use:DataUse)->GraphData:
 		return self.graph().incomingDataForUse(self, use)
 
-	def eval(self)->GraphData:
-		"""Runs any transform operation on input data"""
+	def execute(self, inputFlowData:GraphData)->GraphData:
+		"""Runs any transform operation on input data - the output of this function
+		(if not None) is saved as the Flow data of this node
+		"""
 
 
 	def nodeValid(self):

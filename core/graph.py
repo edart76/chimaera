@@ -4,7 +4,7 @@ from weakref import WeakSet
 import typing as T
 
 from tree.lib.sequence import flatten
-from tree.lib.uid import getReadableUid
+from tree.lib.uid import getReadableUid, toUid
 from .nodedata import NodeDataHolder, NodeDataTree
 from chimaera.constant import NodeDataKeys, DataUse
 from .graphdata import GraphData
@@ -50,7 +50,7 @@ class ChimaeraGraph(nx.MultiDiGraph):
 		self.deltaTracker = GraphDeltaTracker()
 
 		# single map to store all of nodes' actual data
-		self.dataStore : dict[str, dict[DataUse, NodeDataTree]] = defaultdict(dict)
+		self.dataStore : dict[str, dict[DataUse, GraphData]] = defaultdict(dict)
 
 	def uidNodeMap(self)->dict[str, ChimaeraNode]:
 		return {i.uid : i for i in self}
@@ -148,6 +148,17 @@ class ChimaeraGraph(nx.MultiDiGraph):
 
 
 	# getting node data - unsure of what to defer to node here
+
+	def nodeData(self, node:(str, ChimaeraNode), use:DataUse=DataUse.Flow)->GraphData:
+		"""returns the data for the given use for this node"""
+		return self.dataStore[toUid(node)][use]
+
+	def setNodeData(self, node:(str, ChimaeraNode),
+	                data:GraphData,
+	                use:DataUse=DataUse.Flow,):
+		"""sets the data for the given use for this node"""
+		self.dataStore[toUid(node)][use] = data
+
 	def nodeOutputDataForUse(self, node:ChimaeraNode, use:DataUse)->GraphData:
 		"""return a node's data for a given DataUse"""
 		return node.outputDataForUse(use)

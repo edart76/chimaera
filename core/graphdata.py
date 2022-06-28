@@ -5,8 +5,9 @@ import typing as T
 
 import networkx as nx
 
+from tree import FailToFind
 from tree.lib.sequence import flatten
-
+from tree.lib.uid import toUid
 from .nodedata import NodeDataTree
 
 if T.TYPE_CHECKING:
@@ -34,6 +35,25 @@ class GraphData:
 			datas.append(node.baseParams)
 		edges = {(i[0].uid, i[1].uid) for i in subgraph.edges}
 		return cls(datas, edges)
+
+
+	def __post_init__(self):
+		"""build a map of {treeUid : tree} from nodeDatas
+		if the same uid is used for multiple data uses, this will be insufficient -
+		should GraphData know about DataUse for each tree?
+		"""
+		self.nodeDatas = self.nodeDatas or []
+		self.uidTreeMap = {toUid(nodeData): nodeData for nodeData in self.nodeDatas}
+
+
+	def __getitem__(self, item:(str, ChimaeraNode, NodeDataTree))->NodeDataTree:
+		"""get node data tree by uid or node object"""
+		return self.uidTreeMap[toUid(item)]
+
+	def get(self, key:(str, ChimaeraNode, NodeDataTree), default=None)->NodeDataTree:
+		"""get node data tree by uid or node object"""
+		result = self.uidTreeMap.get(toUid(key), FailToFind)
+		return default if result is FailToFind else result
 
 	def resultGraph(self, graphCls=nx.DiGraph)->nx.DiGraph:
 		"""return a result nx graph object built from this params

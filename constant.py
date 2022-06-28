@@ -8,8 +8,6 @@ from chimaera.core.datause import DataUse
 from chimaera.core.datatype import DataType
 
 
-
-
 class NodeDataKeys:
 	"""string key constants used widely"""
 	paramTree = "params"
@@ -17,6 +15,13 @@ class NodeDataKeys:
 	nodeName = "nodeName"
 	treeValue = "nodeValue"
 	treeProperties = "nodeProperties"
+
+
+class GraphEvalModes(Enum):
+	"""different modes for graph evaluation"""
+	Lazy = 0
+	Active = 1
+	Dormant = 2
 
 class NodeRefModes(Enum):
 	"""one to one match between member names and values"""

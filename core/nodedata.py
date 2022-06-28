@@ -6,6 +6,9 @@ from tree.lib.object import UidElement
 from tree import Tree
 
 from tree.lib.delta import DeltaAtom
+
+from tree.util import TreeUiMixin
+
 from chimaera.constant import dataKeyType, NodeDataKeys
 
 if T.TYPE_CHECKING:
@@ -19,7 +22,7 @@ class NodeDataDeltaAtom(DeltaAtom):
 	oldValue = None
 
 
-class NodeDataTree(Tree):
+class NodeDataTree(Tree, TreeUiMixin):
 	"""why not"""
 	nodeName = Tree.TreeBranchDescriptor(NodeDataKeys.nodeName, create=True, useValue=True)
 	@classmethod

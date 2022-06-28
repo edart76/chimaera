@@ -4,7 +4,7 @@ from __future__ import annotations
 all elements of this node are represented as tree nodes"""
 
 from chimaera.constant import INPUT_NAME, OUTPUT_NAME
-from chimaera import ChimaeraNode, ChimaeraGraph, GraphTree
+from chimaera import ChimaeraNode, ChimaeraGraph, GraphTree, GraphData
 from chimaera.plugtree import PlugTree
 
 class PlugNode( GraphTree):
@@ -31,6 +31,15 @@ class PlugNode( GraphTree):
 		"""return all edges contained between this node and its plugs"""
 		nBunch = self.inPlug.allBranches() + self.outPlug.allBranches() + [self]
 		return self.graph().edges(nBunch)
+
+	def execute(self, inputFlowData:GraphData) ->GraphData:
+		"""for a plug node, we gather flow data from all input plug nodes,
+		and merge it into single graphData object -
+		acts as dict indexed by input plug node,
+		we expect to form a graphData object indexed by output plug node
+		"""
+
+
 
 
 if __name__ == '__main__':
