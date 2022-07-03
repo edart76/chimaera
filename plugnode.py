@@ -13,11 +13,22 @@ class PlugNode( GraphTree):
 	outPlug = GraphTree.TreeBranchDescriptor(OUTPUT_NAME, create=False, useValue=False)
 
 	def __init__(self, name:str, value=None, treeUid=None, graph=None, nodeParams=None):
-		super(PlugNode, self).__init__(name, value, treeUid, graph, nodeParams)
+		super(PlugNode, self).__init__(name,
+		                               value=value,
+		                               treeUid=treeUid,
+		                               graph=graph,
+		                               nodeParams=nodeParams)
 
 		# create input output trees
 		self.inPlug = PlugTree(INPUT_NAME)
 		self.outPlug = PlugTree(OUTPUT_NAME)
+
+	def childNodes(self)->list[PlugNode]:
+		"""return any full plug nodes that refer to this one as their parent -
+		chimaera doesn't have fully nested graphs, but filtering visible
+		hierarchies for this will let us imitate it"""
+		return [i for i in self.branches if isinstance(i, PlugNode)]
+
 
 	def syncPlugs(self):
 		"""run after settings are defined / loaded - this method should populate

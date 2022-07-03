@@ -39,6 +39,7 @@ class NodeDataTree(Tree, TreeUiMixin):
 		dataTree.nodeName = name
 		return dataTree
 
+
 @dataclass
 class NodeDataHolder(UidElement):
 	"""base class for passive node params - store minimal amount of

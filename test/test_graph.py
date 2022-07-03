@@ -3,7 +3,7 @@ from __future__ import annotations
 """test cases for new graph system"""
 import unittest, pprint
 import networkx as nx
-from chimaera import ChimaeraGraph, ChimaeraNode, NodeDataHolder, DataUse
+from chimaera import ChimaeraGraph, ChimaeraNode, NodeDataTree, DataUse
 
 class TestGraphTree(unittest.TestCase):
 	""" test for graph emulating basic tree """

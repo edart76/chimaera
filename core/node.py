@@ -69,9 +69,19 @@ class ChimaeraNode(DataFacade, #PostInitMixin
 		dataTree.nodeName = name
 		return dataTree
 
+	@classmethod
+	def create(cls, name:str, uid=None, graph:ChimaeraGraph=None)->ChimaeraNode:
+		"""create a new node of this type"""
+		nodeParams = cls.defaultParamTree(name, uid)
+		return cls(graph, nodeParams)
+
+
 	def __init__(self, graph:ChimaeraGraph, nodeParams:NodeDataTree):
 		super(ChimaeraNode, self).__init__()
+
+		#print("node init tree", nodeParams.displayStr())
 		self._dataObjects[NodeDataKeys.paramTree] = nodeParams
+		#print("node data tree", self.baseParams)
 
 		self._graph : ChimaeraGraph = None
 		self.setGraph(graph)
@@ -98,11 +108,6 @@ class ChimaeraNode(DataFacade, #PostInitMixin
 	def graph(self)->ChimaeraGraph:
 		return self._graph
 
-	@classmethod
-	def create(cls, name:str, uid=None)->ChimaeraNode:
-		"""create a new node of this type"""
-		nodeParams = cls.defaultParamTree(name, uid)
-		return cls(name, nodeParams)
 
 	@property
 	def baseParams(self)->NodeDataTree:

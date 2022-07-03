@@ -10,24 +10,26 @@ from dataclasses import dataclass
 from tree.lib.object import NamedClassMixin
 from tree.lib.python import iterSubClasses
 
+from tree.lib.object import ExEnum
+
 knownTypes = {}
 
-class DataTypeMeta(type):
-	"""meta-class for data use types
-	unfortunately we miss out on type hinting"""
-	def __getattr__(self, item:str):
-		return knownTypes.get(item) or object.__getattribute__(self, item)
-	def __getitem__(self, item):
-		return knownTypes[item]
+# class DataTypeMeta(type):
+# 	"""meta-class for data use types
+# 	unfortunately we miss out on type hinting"""
+# 	def __getattr__(self, item:str):
+# 		return knownTypes.get(item) or object.__getattribute__(self, item)
+# 	def __getitem__(self, item):
+# 		return knownTypes[item]
 
 @dataclass(frozen=True)
-class DataType(metaclass=DataTypeMeta):
+class DataType(ExEnum):
 	"""string key constants used widely"""
 	name : str
 	colour : tuple = (128, 128, 128)
 
-	def __post_init__(self):
-		knownTypes[self.name] = self
+	# def __post_init__(self):
+	# 	knownTypes[self.name] = self
 
 
 

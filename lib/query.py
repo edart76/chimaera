@@ -63,6 +63,10 @@ def resolveQuery(graph:ChimaeraGraph, query:str):
 	query string is a logical expression of nodes
 	"""
 
+def queryTextIsValid(query:str)->bool:
+	"""check if a query string is valid
+	"""
+	return True
 
 
 

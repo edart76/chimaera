@@ -4,15 +4,21 @@ from weakref import WeakSet
 import typing as T
 
 from tree.lib.sequence import flatten
+from tree import FailToFind
 from tree.lib.uid import getReadableUid, toUid
 from .nodedata import NodeDataHolder, NodeDataTree
 from chimaera.constant import NodeDataKeys, DataUse
 from .graphdata import GraphData
 from .node import ChimaeraNode
 from collections import defaultdict
+
+
 from chimaera.transform import TransformNode
 from chimaera.edgeset import EdgeSet, EdgeSetData
 from chimaera.lib.delta import GraphNodeDelta, GraphEdgeDelta, GraphDeltaSignalComponent, GraphDeltaTracker
+from chimaera.lib.graphexec import GraphExecutionContext, GraphExecutionComponent
+from chimaera.lib.catalogue import ClassCatalogue, baseChimaeraCatalogue
+
 
 CREATED_BY_KEY = "createdBy" # key for edge to node that created this one
 
@@ -39,14 +45,16 @@ class ChimaeraGraph(nx.MultiDiGraph):
 	node evaluation goes like this:
 
 	node.outputDataForUse() -> graph.incomingDataForUse
-
-
-
 	"""
+
+	# catalogue of valid node types -
+	# redefine on child classes to control what nodes can be added to those graphs
+	nodeClassCatalogue : ClassCatalogue = baseChimaeraCatalogue
 
 	def __init__(self):
 		super(ChimaeraGraph, self).__init__()
 		self.signalComponent = GraphDeltaSignalComponent(self)
+		self.execComponent = GraphExecutionComponent(self)
 		self.deltaTracker = GraphDeltaTracker()
 
 		# single map to store all of nodes' actual data
@@ -66,10 +74,25 @@ class ChimaeraGraph(nx.MultiDiGraph):
 		uid = fromId if isinstance(fromId, str) else fromId.uid
 		return self.uidNodeMap().get(uid) or self.nameNodeMap().get(fromId)
 
-	def createNode(self, name:str, nodeCls=ChimaeraNode, add=True):
-		"""creates new node and params"""
-		dataTrees = nodeCls.defaultParamTree(name=name) or NodeDataTree.createParamTree(name)
-		node = nodeCls(self, nodeParams=dataTrees)
+	def _getCreateNodeTargetCls(self, inArg:(T.Type[ChimaeraNode], str))->T.Type[ChimaeraNode]:
+		"""look up class by string name if necessary"""
+		if isinstance(inArg, str):
+			result = self.nodeClassCatalogue.nameClassMap().get(inArg, FailToFind)
+			if result is FailToFind:
+
+				raise ValueError(f"node class {inArg} not found in catalogue; \nValid are {list(sorted(self.nodeClassCatalogue.nameClassMap().keys()))}")
+		else:
+			result = inArg
+		return result
+
+	def createNode(self, nodeCls:(T.Type[ChimaeraNode], str)=ChimaeraNode, name:str="newNode", add=True, uid=None):
+		"""creates new node and params
+		if string is given as class, will look up node class from registered
+		class catalogue"""
+		nodeCls = self._getCreateNodeTargetCls(nodeCls)
+		node = nodeCls.create(name, uid=uid, graph=self)
+		# dataTrees = nodeCls.defaultParamTree(name=name)
+		# node = nodeCls(self, nodeParams=dataTrees)
 		if add:
 			self.addNode(node)
 		return node

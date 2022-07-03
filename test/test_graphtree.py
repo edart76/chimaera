@@ -3,7 +3,7 @@ from __future__ import annotations
 """show cases for new graph system"""
 import unittest, pprint
 
-from chimaera import ChimaeraGraph, ChimaeraNode, NodeDataHolder, DataUse, GraphTree
+from chimaera import ChimaeraGraph, ChimaeraNode, DataUse, GraphTree
 
 class TestGraphTree(unittest.TestCase):
 	""" show for graph emulating basic tree """

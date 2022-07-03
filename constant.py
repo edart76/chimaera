@@ -2,6 +2,8 @@ from __future__ import annotations
 from enum import Enum
 import typing as T
 
+
+from tree.lib.path import Path
 dataKeyType = (str, T.Sequence[str], T.FrozenSet[str])
 
 from chimaera.core.datause import DataUse
@@ -33,6 +35,8 @@ class NodeRefModes(Enum):
 INPUT_NAME = "in"
 OUTPUT_NAME = "out"
 
+# main path for this module
+ROOT_PATH = Path(__file__).parent
 
 if __name__ == '__main__':
 	print(NodeRefModes["Single"])

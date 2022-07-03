@@ -38,7 +38,20 @@ class GraphTree(TreeInterface, ChimaeraNode):
 		dataTree(NodeDataKeys.treeValue).value = None
 		dataTree(NodeDataKeys.treeProperties).value = {}
 
+		#print("defaultParamTree", dataTree.displayStr())
+
 		return dataTree
+
+	@classmethod
+	def create(cls, name:str, uid=None, graph:ChimaeraGraph=None)->ChimaeraNode:
+		"""create a new node of this type"""
+		nodeParams = cls.defaultParamTree(name, uid)
+		#print("cls", cls, nodeParams.displayStr(), cls.create, cls.defaultParamTree)
+		return cls(name,
+		           treeUid=uid,
+		           graph=graph,
+		           nodeParams=nodeParams)
+
 
 	def __init__(self, name:str, value=None,
 	             treeUid=None,
@@ -46,14 +59,17 @@ class GraphTree(TreeInterface, ChimaeraNode):
 
 		# coupled dependency here to allow creation of trees in isolation
 		# can remove if needed
-		from chimaera.core.graph import ChimaeraGraph
+		if graph is None:
+			from chimaera.core.graph import ChimaeraGraph
+			graph = ChimaeraGraph()
 
-		graph = graph or ChimaeraGraph()
 		nodeParams = nodeParams or self.defaultParamTree(name, uid=treeUid)
 		ChimaeraNode.__init__(self, graph, nodeParams)
 
 		graph.addNode(self)
 		self.setGraph(graph)
+
+		#print("before tree init", self.params().serialise())
 
 		TreeInterface.__init__(self, name, value)
 

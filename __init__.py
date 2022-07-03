@@ -11,3 +11,10 @@ from .graphtree import GraphTree
 from .plugnode import PlugNode
 
 
+
+# after package is initialised, scan over nodes for default catalogue
+ChimaeraGraph.nodeClassCatalogue.registerClasses()
+ChimaeraGraph.nodeClassCatalogue.gatherClasses()
+
+
+
