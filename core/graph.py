@@ -51,6 +51,8 @@ class ChimaeraGraph(nx.MultiDiGraph):
 	# redefine on child classes to control what nodes can be added to those graphs
 	nodeClassCatalogue : ClassCatalogue = baseChimaeraCatalogue
 
+	# tree containing all trees known
+
 	def __init__(self):
 		super(ChimaeraGraph, self).__init__()
 		self.signalComponent = GraphDeltaSignalComponent(self)
@@ -229,6 +231,11 @@ class ChimaeraGraph(nx.MultiDiGraph):
 	def onParamsChanged(self, node:ChimaeraNode):
 		"""fires when direct params changed on node -
 		won't work on references"""
+
+	# creation methods
+	@classmethod
+	def create(cls, graphName:str)->ChimaeraGraph:
+		return ChimaeraGraph()
 
 	# data storage
 	def serialise(self)->dict:

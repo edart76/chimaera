@@ -1,52 +1,34 @@
 from __future__ import annotations
 
+import typing as T
+
+from chimaera import ChimaeraGraph
 from PySide2 import QtCore, QtWidgets, QtGui
 
-from treegraph.glimport import *
-if Ty.TYPE_CHECKING:
-	from treegraph.tesserae.mainwidget import TesseraeWidget
-
-from treegraph.graph import Graph
-from treegraph.tesserae.selector import GraphSelector
+from chimaera.ui.widget.filter import GraphFilterWidget
 from chimaera.ui.graphwidget import ChimaeraGraphWidget
 from tree import TreeWidget
-from treegraph.ui.scene import GraphScene
-
 
 class GraphTabWidget(QtWidgets.QTabWidget):
-	"""container widget for tabs, each pointing to a separate graph
+	"""container widget for tabs, each holding a graph view -
+	each
 	"""
 
 	activeGraphChanged = QtCore.Signal(dict)
-	def __init__(self, parent=None, initGraph:Graph=None):
+	def __init__(self, parent=None, initGraph:ChimaeraGraph=None):
 		super(GraphTabWidget, self).__init__(parent)
 
 		self.tabs = {}
 		self.makeLayout()
 		self.setBaseSize(1200, 400)
 
-		self.selector = GraphSelector(parent=self,
-		                           )
-		self.selector.move(0, 20)
-		self.selector.setFixedSize(200, 80)
 
-		self.selector.setTree(self.parent().graphIndex)
-
-		self.selector.currentBranchChanged.connect(
-			self.onSelectorBranchChanged
-		)
-
-
-	def parent(self) -> TesseraeWidget:
-		return super(GraphTabWidget, self).parent()
-
-	def tessApp(self):
-		"""return the top level widget of this tesserae session"""
-		return self.parent()
+	# def parent(self) -> TesseraeWidget:
+	# 	return super(GraphTabWidget, self).parent()
 
 	def onSelectorBranchChanged(self, data):
 		"""receives {newBranch, oldBranch} from selector widget"""
-		view = self.currentWidget() #type:GraphView
+		view = self.currentWidget() #type:ChimaeraGraphWidget
 
 		newBranch = data["newBranch"]
 		#print("newBranch", newBranch)
@@ -61,12 +43,12 @@ class GraphTabWidget(QtWidgets.QTabWidget):
 			view.setGraph(graphBranch)
 
 
-	def allGraphs(self)->Ty.Dict[str, Graph]:
-		"""return uuid map of loaded graphs"""
-		return self.parent().graphs
+	# def allGraphs(self)->T.Dict[str, ChimaeraGraph]:
+	# 	"""return uuid map of loaded graphs"""
+	# 	return self.parent().graphs
 
 	@property
-	def openGraphs(self)->Ty.Dict[str:GraphView]:
+	def openGraphs(self)->T.Dict[str:ChimaeraGraphWidget]:
 		"""return map of {name : graph view widget}
 		for each open graph tab of this window"""
 		nameMap = {}
@@ -74,8 +56,8 @@ class GraphTabWidget(QtWidgets.QTabWidget):
 			return None
 		#try:
 		for i in range(self.count()):
-			graphView = self.widget(i) #type:GraphView
-			if not isinstance(graphView, GraphView):
+			graphView = self.widget(i) #type:ChimaeraGraphWidget
+			if not isinstance(graphView, ChimaeraGraphWidget):
 				continue
 			nameMap[graphView.graph.uid] = graphView
 		return nameMap
@@ -83,16 +65,16 @@ class GraphTabWidget(QtWidgets.QTabWidget):
 		# 	return None
 
 	@property
-	def currentGraph(self)->Graph:
+	def currentGraph(self)->ChimaeraGraph:
 		if self.openGraphs is None:
 			return None
 		key = list(self.openGraphs.keys())[self.currentIndex()]
 		return self.openGraphs[key].graph
 
-	def addGraphView(self, graph:Graph):
+	def addGraph(self, graph:ChimaeraGraph):
 		if self.openGraphs is None:
 			self.removeTab(0)
-		newView = GraphView(parent=None, graph=graph)
+		newView = ChimaeraGraphWidget(parent=None, graph=graph)
 		self.addTab(newView, graph.name)
 		#print("added graph", graph)
 
@@ -101,16 +83,16 @@ class GraphTabWidget(QtWidgets.QTabWidget):
 	def tabForGuid(self, guid:str):
 		pass
 
-	def setTabs(self, graphUuids:Ty.List[str]):
+	def setTabs(self, graphUuids:list[str]):
 		"""this ignores unsaved work for now, not sure how best
 		to structure tabs"""
 
 	def openTab(self, uuid:str):
 		graph = self.allGraphs()[uuid]
 
-	def closeTab(self):
+	def closeTab(self, index=None):
 		"""add here any checks for graphs with unsaved work"""
-		self.removeTab()
+		self.removeTab(index if index is not None else self.currentIndex())
 
 
 

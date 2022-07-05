@@ -69,6 +69,15 @@ def queryTextIsValid(query:str)->bool:
 	return True
 
 
+class GraphQuery:
+	"""class encapsulating a full graph query"""
+
+	def filterGraph(self, graph:ChimaeraGraph)->tuple[set[ChimaeraNode], set[tuple]]:
+		"""return all nodes valid in graph that this query shows,
+		and all edges valid between those nodes
+		"""
+		pass
+
 
 
 

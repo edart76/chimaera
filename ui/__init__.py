@@ -5,3 +5,7 @@
 from chimaera.core.node import ChimaeraNode
 graphItemType = (ChimaeraNode, tuple)
 
+from .widget.mainwindow import ChimaeraMainWidget
+from .graphwidget import ChimaeraGraphWidget
+
+

@@ -18,3 +18,11 @@ ChimaeraGraph.nodeClassCatalogue.gatherClasses()
 
 
 
+try:
+	from .ui import ChimaeraMainWidget, ChimaeraGraphWidget
+except ImportError:
+	print("Chimaera ui not available")
+	ChimaeraWidget = None
+	ChimaeraGraphWidget = None
+
+

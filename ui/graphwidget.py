@@ -32,6 +32,12 @@ class ChimaeraGraphWidget(QtWidgets.QWidget):
 		self.graph = graph
 		self.scene.setGraph(graph)
 
+	def filter(self):
+		return self.scene.node()
+
+	def setFilter(self, nodeFilter:str):
+		self.scene.setFilter(nodeFilter)
+
 def show():
 
 	from tree.test.constant import midTree

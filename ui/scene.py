@@ -28,6 +28,7 @@ from tree.ui.libwidget.draggraphicsscene import MouseDragScene
 import networkx as nx
 from chimaera import ChimaeraGraph, ChimaeraNode
 from chimaera.lib.delta import GraphEdgeDelta, GraphNodeDelta
+from chimaera.lib.query import GraphQuery
 from chimaera.ui.base import GraphicsItemChange
 from chimaera.ui.delegate import GraphItemDelegateAbstract, NodeDelegate, EdgeDelegate
 from chimaera.lib.topology import orderNodes
@@ -72,6 +73,8 @@ class ChimaeraGraphScene(MouseDragScene):
 		self.grid = VIEWER_GRID_OVERLAY
 		self.grid_color = VIEWER_GRID_COLOR
 
+		self.graphQuery : GraphQuery = None
+
 		# signal hookups
 		self.selectionChanged.connect(self.onSceneSelectionChanged)
 
@@ -79,6 +82,15 @@ class ChimaeraGraphScene(MouseDragScene):
 		"""connect signals"""
 		graph.signalComponent.nodesChanged.connect(self.onGraphElementsChanged)
 		graph.signalComponent.edgesChanged.connect(self.onGraphElementsChanged)
+		self.sync()
+
+	def setFilter(self, nodeQuery:GraphQuery):
+		self.graphQuery = nodeQuery
+		self.onQueryChanged()
+		pass
+
+	def onQueryChanged(self):
+		"""update scene based on query"""
 		self.sync()
 
 	def parent(self) -> ChimaeraGraphWidget:
@@ -141,9 +153,22 @@ class ChimaeraGraphScene(MouseDragScene):
 	### region graph signal functions, direct match to tree signals
 	def onGraphElementsChanged(self, delta:GraphNodeDelta):
 		"""called when graph nodes or edges changed, updates visual
-		elements"""
+		elements
+
+		filter by query first
+		"""
+		if self.graphQuery is None:
+			nodes, edges = self.graph().nodes, self.graph().edges
+		else:
+			nodes, edges = self.graphQuery.filterGraph(self.graph())
+
+		combinedElements = nodes.union(edges)
+
+		# filter added elements by query
+		added = delta.added.intersection(combinedElements)
+
 		# add any new elements
-		items = self.generateItemsForGraphElements(delta.added)
+		items = self.generateItemsForGraphElements(added)
 		for i in items:
 			self.addGraphItemDelegate(i)
 
@@ -154,6 +179,7 @@ class ChimaeraGraphScene(MouseDragScene):
 				# if so, remove it
 				self.removeGraphItemDelegate(
 					self.mainElementDelegateMap()[i])
+
 
 	# delegate plugin system now slightly different, no longer guaranteed one to one
 	# between delegates and node classes
