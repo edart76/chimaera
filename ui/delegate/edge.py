@@ -10,7 +10,7 @@ import typing as T
 from chimaera import ChimaeraGraph, ChimaeraNode, DataUse
 from chimaera.ui import graphItemType
 from chimaera.ui.delegate.node import NodeDelegate
-from chimaera.ui.base import GraphicsItemChange, dataColourMap
+from chimaera.ui.base import GraphicsItemChange#, dataColourMap
 from .graphitem import GraphItemDelegateAbstract
 
 if T.TYPE_CHECKING:
@@ -126,8 +126,8 @@ class EdgeDelegate(
 
 	def sync(self, *args, **kwargs):
 		# build gradient
-		self.startCol = QtGui.QColor(*dataColourMap[self.edgeData()["fromUse"]])
-		self.endCol = QtGui.QColor(*dataColourMap[self.edgeData()["toUse"]])
+		self.startCol = QtGui.QColor(*self.edgeData()["fromUse"].edgeColour)
+		self.endCol = QtGui.QColor(*self.edgeData()["toUse"].edgeColour)
 		gradient = QtGui.QLinearGradient(0.0, 0.0, 1.0, 1.0)
 		gradient.setColorAt(0.0, self.startCol)
 		gradient.setColorAt(1.0, self.endCol)

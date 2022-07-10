@@ -84,7 +84,7 @@ class ChimaeraGraphScene(MouseDragScene):
 		graph.signalComponent.edgesChanged.connect(self.onGraphElementsChanged)
 		self.sync()
 
-	def setFilter(self, nodeQuery:GraphQuery):
+	def setQuery(self, nodeQuery:GraphQuery):
 		self.graphQuery = nodeQuery
 		self.onQueryChanged()
 		pass
@@ -119,6 +119,10 @@ class ChimaeraGraphScene(MouseDragScene):
 		return {element : delegate for element, delegate in self.elementDelegateMap().items() if isinstance(delegate, NodeDelegate)}
 	def pipes(self)->dict[tuple, EdgeDelegate]:
 		return {edge : delegate for edge, delegate in self.elementDelegateMap().items() if isinstance(delegate, EdgeDelegate)}
+
+	def elementForDelegate(self, delegate:GraphItemDelegateAbstract)->graphItemType:
+		"""return graph element for delegate"""
+		return delegate.mainGraphElement()
 
 	# drawing and item creation logic
 	def sortDelegateClsPriority(self)->list[T.Type[NodeDelegate]]:
@@ -155,16 +159,16 @@ class ChimaeraGraphScene(MouseDragScene):
 		"""called when graph nodes or edges changed, updates visual
 		elements
 
-		filter by query first
+		query by query first
 		"""
 		if self.graphQuery is None:
-			nodes, edges = self.graph().nodes, self.graph().edges
+			nodes, edges = set(self.graph().nodes), set(self.graph().edges)
 		else:
 			nodes, edges = self.graphQuery.filterGraph(self.graph())
 
 		combinedElements = nodes.union(edges)
 
-		# filter added elements by query
+		# query added elements by query
 		added = delta.added.intersection(combinedElements)
 
 		# add any new elements
@@ -172,7 +176,7 @@ class ChimaeraGraphScene(MouseDragScene):
 		for i in items:
 			self.addGraphItemDelegate(i)
 
-		# filter any removed elements to delete delegates
+		# query any removed elements to delete delegates
 		for i in delta.removed:
 			# check if removed graph element is a main one for any delegates
 			if i in self.mainElementDelegateMap():
@@ -180,24 +184,6 @@ class ChimaeraGraphScene(MouseDragScene):
 				self.removeGraphItemDelegate(
 					self.mainElementDelegateMap()[i])
 
-
-	# delegate plugin system now slightly different, no longer guaranteed one to one
-	# between delegates and node classes
-
-	# @classmethod
-	# def registerNodeDelegate(cls, nodeCls, delegateCls):
-	# 	"""used to register custom node drawing class"""
-	# 	cls.delegateMap[nodeCls] = delegateCls
-	#
-	# @classmethod
-	# def delegateForNode(cls, node:ChimaeraNode)->T.Type[NodeDelegate]:
-	# 	"""look up the nearest matching delegate for
-	# 	given node"""
-	# 	result = superClassLookup(cls.delegateMap, node)
-	# 	if result is None:
-	# 		raise RuntimeError("No drawing delegate found for {} or in {}".format(
-	# 			type(node), type(node).__mro__	))
-	# 	return result
 
 	def sync(self):
 		"""fully clears and resets scene - may be costly
@@ -213,6 +199,8 @@ class ChimaeraGraphScene(MouseDragScene):
 
 		self.layoutTiles()
 
+	# endregion
+
 	# def layoutNodes(self, nodes:list[NodeDelegate]):
 	# 	"""moves around given nodes to avoid intersections (if possible)"""
 
@@ -226,7 +214,34 @@ class ChimaeraGraphScene(MouseDragScene):
 		for i in self.tiles().values():
 			i.onSceneSelectionChanged()
 
-	def onDeleteCalled(self):
+	#region events
+	def mousePressEvent(self, event):
+		if debugEvents: print("scene mousePress")
+		super(ChimaeraGraphScene, self).mousePressEvent(event)
+		if event.isAccepted():
+			if debugEvents: print("scene mousePress accepted, returning")
+			return True
+		selected_nodes = self.selectedTiles()
+		# if self.activeView:
+		# 	self.activeView.beginDrawPipes(event)
+
+	def mouseReleaseEvent(self, event):
+		super(ChimaeraGraphScene, self).mouseReleaseEvent(event)
+
+	def keyPressEvent(self, event):
+		super(ChimaeraGraphScene, self).keyPressEvent(event)
+		if event.isAccepted():
+			return True
+
+		self.keyState.dispatchKeyEventFunctions(event, forObject=self, pressed=True)
+
+	def onEnterPressed(self, event:QtGui.QKeyEvent, pressed=True):
+		"""attempt to 'dive in' to node if it can represent a subgraph"""
+
+	def onTabPressed(self, event: QtGui.QKeyEvent, pressed=True):
+		""""""
+
+	def onDeletePressed(self, event:QtGui.QKeyEvent, pressed=True):
 		"""delete selected tiles and pipes"""
 		print("on delete called")
 		# print("edges", self.graph().edges)
@@ -291,16 +306,6 @@ class ChimaeraGraphScene(MouseDragScene):
 		return [i for i in self.selectedItems()
 		        if isinstance(i, EdgeDelegate)]
 
-	def mousePressEvent(self, event):
-		if debugEvents: print("scene mousePress")
-		super(ChimaeraGraphScene, self).mousePressEvent(event)
-		if event.isAccepted():
-			if debugEvents: print("scene mousePress accepted, returning")
-			return True
-		selected_nodes = self.selectedTiles()
-		# if self.activeView:
-		# 	self.activeView.beginDrawPipes(event)
-
 	def relaxItems(self, items, iterations=1):
 		for n in range(iterations):
 			for i in items:
@@ -331,9 +336,6 @@ class ChimaeraGraphScene(MouseDragScene):
 				tile.setX(x)
 				x += tile.sceneBoundingRect().width() + separation
 		#self.updatePipePaths(tiles)
-
-	def mouseReleaseEvent(self, event):
-		super(ChimaeraGraphScene, self).mouseReleaseEvent(event)
 
 
 

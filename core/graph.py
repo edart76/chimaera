@@ -53,8 +53,9 @@ class ChimaeraGraph(nx.MultiDiGraph):
 
 	# tree containing all trees known
 
-	def __init__(self):
+	def __init__(self, name:str="newGraph"):
 		super(ChimaeraGraph, self).__init__()
+		self.name = name
 		self.signalComponent = GraphDeltaSignalComponent(self)
 		self.execComponent = GraphExecutionComponent(self)
 		self.deltaTracker = GraphDeltaTracker()
@@ -235,7 +236,7 @@ class ChimaeraGraph(nx.MultiDiGraph):
 	# creation methods
 	@classmethod
 	def create(cls, graphName:str)->ChimaeraGraph:
-		return ChimaeraGraph()
+		return cls(name=graphName)
 
 	# data storage
 	def serialise(self)->dict:
@@ -243,3 +244,9 @@ class ChimaeraGraph(nx.MultiDiGraph):
 		baseData = self.dataStore
 
 		return baseData
+
+	def __str__(self):
+		return f"{self.__class__}-{self.name}"
+
+
+

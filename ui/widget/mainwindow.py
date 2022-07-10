@@ -49,6 +49,8 @@ class ChimaeraMainWidget(QtWidgets.QWidget):
 		self.makeLayout()
 		self.makeSignals()
 
+		self.setBaseSize(600, 600)
+
 	def makeSignals(self):
 		pass
 
@@ -59,18 +61,20 @@ class ChimaeraMainWidget(QtWidgets.QWidget):
 		self.setLayout(vl)
 
 	def currentGraph(self)->ChimaeraGraph:
-		return self.tabWidgets[0].currentGraph
+		return self.tabWidgets[0].currentGraph()
 
-	def _instanceStartup(self, graph=None, newGraphName="newGraph", graphCls=ChimaeraGraph):
+	def _instanceStartup(self, graph=None, newGraphName="newGraph", graphCls=None):
+		#print("instanceStartup", graph, newGraphName, graphCls)
 		if not graph:
 			graphCls = graphCls or self.defaultGraphCls
 			graph = graphCls.create(graphName=newGraphName)
 
+		#print("instanceStartup", graph, "default cls", self.defaultGraphCls)
 		self.tabWidgets[0].addGraph(graph)
 
 	@classmethod
 	def startup(cls, parent:QtWidgets.QWidget=None, graph=None, newGraphName="newGraph",
-	            graphCls=ChimaeraGraph)->ChimaeraMainWidget:
+	            graphCls=None)->ChimaeraMainWidget:
 		"""
 		if specific graph is provided, opens on that
 		graphCls is class of main root graph to show"""

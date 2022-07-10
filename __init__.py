@@ -3,8 +3,9 @@
 """
 
 from .constant import *
-from .core.nodedata import NodeDataTree
 from .core.graphdata import GraphData
+from .core.nodedata import NodeDataTree
+
 from .core.node import ChimaeraNode
 from .core.graph import ChimaeraGraph
 from .graphtree import GraphTree

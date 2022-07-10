@@ -6,8 +6,8 @@ import typing as T
 from tree.lib.path import Path
 dataKeyType = (str, T.Sequence[str], T.FrozenSet[str])
 
-from chimaera.core.datause import DataUse
-from chimaera.core.datatype import DataType
+from chimaera.datause import DataUse
+from chimaera.datatype import DataType
 
 
 class NodeDataKeys:

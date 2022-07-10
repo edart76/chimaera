@@ -70,7 +70,22 @@ def queryTextIsValid(query:str)->bool:
 
 
 class GraphQuery:
-	"""class encapsulating a full graph query"""
+	"""class encapsulating a full graph query
+	no idea still how to do this properly
+
+	not sure we should allow naming individual queries - in contexts where
+	naming is appropriate (for saving specific views), the query itself
+	will only be one part of the bookmarked display to shift to. Therefore
+	you would name the bookmark, and not the actual query.
+	"""
+
+	def __init__(self, query:str, name:str=""):
+		self.queryText = query
+
+	def isValid(self)->bool:
+		"""check if this query is valid
+		"""
+		return True
 
 	def filterGraph(self, graph:ChimaeraGraph)->tuple[set[ChimaeraNode], set[tuple]]:
 		"""return all nodes valid in graph that this query shows,

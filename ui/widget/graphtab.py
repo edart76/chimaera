@@ -5,7 +5,8 @@ import typing as T
 from chimaera import ChimaeraGraph
 from PySide2 import QtCore, QtWidgets, QtGui
 
-from chimaera.ui.widget.filter import GraphFilterWidget
+from chimaera.ui.widget.querywidget import GraphQueryWidget
+from .graphtoolbar import GraphToolbar
 from chimaera.ui.graphwidget import ChimaeraGraphWidget
 from tree import TreeWidget
 
@@ -59,23 +60,24 @@ class GraphTabWidget(QtWidgets.QTabWidget):
 			graphView = self.widget(i) #type:ChimaeraGraphWidget
 			if not isinstance(graphView, ChimaeraGraphWidget):
 				continue
-			nameMap[graphView.graph.uid] = graphView
+			nameMap[graphView.graph.name] = graphView
 		return nameMap
 		# except:
 		# 	return None
 
-	@property
 	def currentGraph(self)->ChimaeraGraph:
 		if self.openGraphs is None:
 			return None
-		key = list(self.openGraphs.keys())[self.currentIndex()]
-		return self.openGraphs[key].graph
+		#key = list(self.openGraphs.keys())[self.currentIndex()]
+		return self.currentWidget().graph
+		#return self.openGraphs[key].graph
 
 	def addGraph(self, graph:ChimaeraGraph):
 		if self.openGraphs is None:
 			self.removeTab(0)
 		newView = ChimaeraGraphWidget(parent=None, graph=graph)
-		self.addTab(newView, graph.name)
+		tabIndex = self.addTab(newView, graph.name)
+		self.setTabText(self.count()-1, graph.name)
 		#print("added graph", graph)
 
 

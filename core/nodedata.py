@@ -47,6 +47,8 @@ class NodeDataHolder(UidElement):
 
 	all information directly returned by this object is from the "base"
 	params, no compositing or overriding is done here
+
+	no longer used, remove
 	"""
 
 	_name: str # only used at init

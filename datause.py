@@ -37,6 +37,7 @@ class DataUseMeta(type):
 class DataUse(metaclass=DataUseMeta):
 	"""string key constants used widely"""
 	name : str
+	edgeColour : tuple = (128, 128, 128)
 	uiPosition : UiPlugPosition = UiPlugPosition.LeftRight
 
 	def __post_init__(self):
@@ -44,12 +45,14 @@ class DataUse(metaclass=DataUseMeta):
 
 
 
-Params = DataUse("Params")
-Flow = DataUse("Flow")
-Structure = DataUse("Structure")
-Creator = DataUse("Creator")
-Tree = DataUse("Tree", UiPlugPosition.TopBottom)
+
 Anchor = DataUse("Anchor")
+Creator = DataUse("Creator", edgeColour=(100, 200, 100))
+Flow = DataUse("Flow", edgeColour=(200, 70, 100))
+Params = DataUse("Params", edgeColour=(100, 50, 200))
+Structure = DataUse("Structure", edgeColour=(100, 100, 200))
+Tree = DataUse("Tree", edgeColour=(100, 100, 100),
+               uiPosition=UiPlugPosition.TopBottom)
 
 
 if __name__ == '__main__':

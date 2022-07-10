@@ -13,11 +13,12 @@ class GraphicsItemChange:
 	value : object = None
 
 
-dataColourMap = {
-	DataUse.Flow : (200, 70, 100),
-	DataUse.Params : (100, 50, 200),
-	DataUse.Structure : (100, 100, 200),
-	DataUse.Creator : (100, 200, 100),
-
-}
+# dataColourMap = {
+# 	DataUse.Flow : (200, 70, 100),
+# 	DataUse.Params : (100, 50, 200),
+# 	DataUse.Structure : (100, 100, 200),
+# 	DataUse.Creator : (100, 200, 100),
+# 	DataUse.Tree : (100, 100, 100),
+#
+# }
 
