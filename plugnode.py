@@ -20,8 +20,13 @@ class PlugNode( GraphTree):
 		                               nodeParams=nodeParams)
 
 		# create input output trees
+		# need some kind of transaction system to avoid UI interfering immediately
 		self.inPlug = PlugTree(INPUT_NAME)
 		self.outPlug = PlugTree(OUTPUT_NAME)
+
+		print("plugNode init", self.branches)
+		print("inplug", self.inPlug)
+
 
 	def childNodes(self)->list[PlugNode]:
 		"""return any full plug nodes that refer to this one as their parent -

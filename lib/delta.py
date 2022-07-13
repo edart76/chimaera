@@ -40,6 +40,13 @@ class GraphNodeDelta(DeltaAtom):
 			target.add_nodes_from(self.removed)
 		target.signalComponent.unPauseDeltaGathering()
 
+	@classmethod
+	def combined(cls, deltas:list[cls]) ->list[cls]:
+		added = set(*i.added for i in deltas)
+		removed = set(*i.removed for i in deltas)
+		base = cls(added, removed)
+		return [base]
+
 
 @dataclass
 class GraphEdgeDelta(DeltaAtom):
@@ -48,6 +55,12 @@ class GraphEdgeDelta(DeltaAtom):
 	added : set[tuple] = frozenset()
 	removed : set[tuple] = frozenset()
 
+	@classmethod
+	def combined(cls, deltas:list[cls]) ->list[cls]:
+		added = set(*i.added for i in deltas)
+		removed = set(*i.removed for i in deltas)
+		base = cls(added, removed)
+		return [base]
 
 	def doDelta(self, target:ChimaeraGraph):
 		target.signalComponent.pauseDeltaGathering()
@@ -107,7 +120,9 @@ class GraphDeltaSignalComponent:
 	def __init__(self, graph:Graph):
 		self.graph = graph
 		self.pausedDeltaGathering = False
-
+		#self.pauseAndGathering = False
+		self.storedDeltas = {"node" : [],
+		                     "edge" : []}
 		# signal for user change to graph
 		self.deltaAdded = Signal(name="deltaAdded")
 
@@ -122,25 +137,45 @@ class GraphDeltaSignalComponent:
 		for i in self.allFns:
 			setattr(self.graph, i.__name__, self.wrapGraphFn(self.graph,
 				getattr(self.graph, i.__name__)))
+		self.clearStoredDeltas()
 
+	def clearStoredDeltas(self):
+		self.storedDeltas = {"node" : [],
+		                     "edge" : []}
 
 	def pauseDeltaGathering(self):
 		self.pausedDeltaGathering = True
 		return GraphSignalContext(self, muteSignals=True)
 
-	def unPauseDeltaGathering(self):
+	def unPauseDeltaGathering(self, emitStoredDeltas=True):
 		self.pausedDeltaGathering = False
+		if emitStoredDeltas:
+			# combine deltas
+			nodeDelta = GraphNodeDelta.combined(self.storedDeltas["node"])
+			edgeDelta = GraphEdgeDelta.combined(self.storedDeltas["edge"])
+			self.emitDelta(nodeDelta)
+			self.emitDelta(edgeDelta)
+		self.clearStoredDeltas()
+
 
 	def emitDelta(self, delta:(GraphNodeDelta, GraphEdgeDelta)):
 		"""called to add a new delta
 		only add the delta if deltaGathering is not paused"""
-		if not self.pausedDeltaGathering:
-			self.deltaAdded.emit(delta)
-		if isinstance(delta, GraphNodeDelta):
-			self.nodesChanged.emit(delta)
-		if isinstance(delta, GraphEdgeDelta):
-			self.edgesChanged.emit(delta)
-		pass
+		self.deltaAdded.emit(delta)
+
+		if self.pausedDeltaGathering: # store up deltas to combine
+			if isinstance(delta, GraphNodeDelta):
+				self.storedDeltas["node"].append(delta)
+			elif isinstance(delta, GraphEdgeDelta):
+				self.storedDeltas["edge"].append(delta)
+
+		else: # emit the delta
+			if isinstance(delta, GraphNodeDelta):
+				self.nodesChanged.emit(delta)
+			if isinstance(delta, GraphEdgeDelta):
+				self.edgesChanged.emit(delta)
+
+
 
 	def gatherNodeSet(self, graph:Graph)->set[ChimaeraNode]:
 		"""run before a node-altering function to gather list of pre-change nodes to compare"""

@@ -30,7 +30,7 @@ from chimaera import ChimaeraGraph, ChimaeraNode
 from chimaera.lib.delta import GraphEdgeDelta, GraphNodeDelta
 from chimaera.lib.query import GraphQuery
 from chimaera.ui.base import GraphicsItemChange
-from chimaera.ui.delegate import GraphItemDelegateAbstract, NodeDelegate, EdgeDelegate
+from chimaera.ui.delegate import GraphItemDelegateAbstract, NodeDelegate, EdgeDelegate, PlugNodeDelegate, PlugTreeDelegate
 from chimaera.lib.topology import orderNodes
 
 from chimaera.ui import graphItemType
@@ -55,10 +55,20 @@ class ChimaeraGraphScene(MouseDragScene):
 
 	"""
 
-	delegateMap = {ChimaeraNode : NodeDelegate} #type:T.Dict[T.Type[GraphItemDelegateAbstract] : T.Type[NodeDelegate]]
+	#delegateMap = {ChimaeraNode : NodeDelegate} #type:T.Dict[T.Type[GraphItemDelegateAbstract] : T.Type[NodeDelegate]]
 
 	# set of delegate types that this particular scene or view may show
-	validDelegates = { NodeDelegate, EdgeDelegate }
+	validDelegates : set[T.Type[GraphItemDelegateAbstract]] = {
+		NodeDelegate, EdgeDelegate, PlugNodeDelegate
+	}
+
+	# region plugin stuff
+	@classmethod
+	def registerDrawingDelegate(cls, delegateCls:T.Type[GraphItemDelegateAbstract],
+	                            ):
+		"""register a new drawing delegate class - no need to wire in specific real
+		classes, since the delegate selection system is delegated"""
+		cls.validDelegates.add(delegateCls)
 
 	itemChanged = QtCore.Signal(GraphicsItemChange)
 
@@ -101,7 +111,8 @@ class ChimaeraGraphScene(MouseDragScene):
 
 	def elementDelegateMap(self)->dict[graphItemType, GraphItemDelegateAbstract]:
 		"""return map of {graph element : drawing delegate}
-		for every singular thing in chimaera graph"""
+		for every singular thing in chimaera graph
+		multiple graph elements may map to the same delegate"""
 		itemMap = {}
 		for delegate in self.graphDelegateItems:
 			itemMap.update({subItem : delegate for subItem in delegate.graphItems})
@@ -125,20 +136,65 @@ class ChimaeraGraphScene(MouseDragScene):
 		return delegate.mainGraphElement()
 
 	# drawing and item creation logic
-	def sortDelegateClsPriority(self)->list[T.Type[NodeDelegate]]:
+	def instanceDelegateGeneratorClasses(self)->T.List[T.Type[GraphItemDelegateAbstract]]:
+		"""return list of delegate types whose instance objects might create
+		more delegates when graph items are added"""
+		return [delegateCls for delegateCls in self.validDelegates if delegateCls.instancesMayCreateDelegates]
+
+	def sortDelegateClsPriority(self)->list[T.Type[GraphItemDelegateAbstract]]:
 		"""may not be necessary, but sort the order in which items are passed to
 		delegate classes in order to be drawn"""
 		return list(sorted(self.validDelegates, key=lambda x: x.delegatePriority, reverse=True))
 
+	def sortedDelegateGenerators(self)->list[GraphItemDelegateAbstract]:
+
+		# collect possible generators of delegates to check over
+		# instances first
+		instanceGeneratorClasses = tuple(self.instanceDelegateGeneratorClasses())
+		generatorDelegateInstances = [i for i in self.mainElementDelegateMap().values() if isinstance(i, instanceGeneratorClasses)]
+		# sort by class priority
+		generatorDelegateInstances = list(sorted(generatorDelegateInstances, key=lambda x: x.delegatePriority, reverse=True))
+
+		# then delegate classes
+		generatorDelegateClasses = self.sortDelegateClsPriority()
+		return generatorDelegateInstances + generatorDelegateClasses
+
+
 	def generateItemsForGraphElements(self, elements:T.Sequence[graphItemType])->list[GraphItemDelegateAbstract]:
 		"""given elements of graph to sync with,
 		pass selection to successive delegate classes and return any
-		items generated"""
+		items generated
+
+		check first with delegate instances, then with delegate classes
+
+		"""
 		elementSet = set(elements)
 		result = []
-		for i in self.sortDelegateClsPriority():
-			newItems = i.delegatesForElements(scene=self, itemPool=elementSet)
+
+		delegateGenerators = self.sortedDelegateGenerators()
+
+		# iterate
+		# ensure elements are removed from set when delegates generated for them
+		baseSetLen = len(elementSet)
+		while elementSet and delegateGenerators:
+			testGenerator = delegateGenerators.pop(0)
+			if isinstance(testGenerator, GraphItemDelegateAbstract):
+				genFn = testGenerator.instanceDelegatesForElements
+			else:
+				genFn = testGenerator.delegatesForElements
+			newItems = genFn(scene=self, itemPool=elementSet)
+			print("delegate cls", testGenerator, "items", newItems)
+
+			# check set lengths are valid
+			assert baseSetLen <= (len(elementSet) + len(newItems)), f"delegate {testGenerator} did not properly remove items from new element pool \n{elementSet}\n when making new items \n{newItems}"
+			baseSetLen = len(elementSet)
+
 			result.extend(newItems)
+
+		# check if any left over
+		if elementSet:
+			raise TypeError(f"no delegate found for graph elements {elementSet}")
+
 		return result
 
 	def addGraphItemDelegate(self, delegate:GraphItemDelegateAbstract):

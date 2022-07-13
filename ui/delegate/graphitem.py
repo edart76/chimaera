@@ -34,6 +34,11 @@ class GraphItemDelegateAbstract:
 
 	delegatePriority = 0 #zero is lowest, any higher will be evaluated first
 
+	# some complex delegates may gather new items as those items are created -
+	# check first among existing delegate instances, then among delegate classes
+	# instance check order is also controlled by priority above
+	instancesMayCreateDelegates = False
+
 	def __init__(self, graphItems:T.Sequence[graphItemType]=None, # parent=None,
 	             ):
 		self.graphItems = list(graphItems)
@@ -46,6 +51,12 @@ class GraphItemDelegateAbstract:
 	# @classmethod
 	# def itemsToDrawFromPool(cls, itemPool:set[ChimaeraNode, tuple]):
 	# 	pass
+
+	def instanceDelegatesForElements(self, scene:ChimaeraGraphScene, itemPool:set[graphItemType])->T.Sequence[GraphItemDelegateAbstract]:
+		"""allow this instance to create delegates for new items in item pool - for
+		example child items, new plugs on a tree node, etc
+		make sure to remove the items from the pool as they are created"""
+		return []
 
 	@classmethod
 	def delegatesForElements(cls, scene:ChimaeraGraphScene, itemPool:set[graphItemType])->T.Sequence[GraphItemDelegateAbstract]:

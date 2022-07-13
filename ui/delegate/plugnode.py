@@ -43,6 +43,10 @@ class PlugNodeDelegate(NodeDelegate):
 
 	def __init__(self, node:PlugNode, parent=None):
 		super(PlugNodeDelegate, self).__init__(node, parent)
+
+		print("node", node)
+		print("branches", node.branches)
+
 		self.inPlugDelegate = PlugTreeDelegate(node.inPlug, parent=self)
 		self.outPlugDelegate = PlugTreeDelegate(node.outPlug, parent=self)
 

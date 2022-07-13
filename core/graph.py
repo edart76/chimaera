@@ -93,11 +93,13 @@ class ChimaeraGraph(nx.MultiDiGraph):
 		if string is given as class, will look up node class from registered
 		class catalogue"""
 		nodeCls = self._getCreateNodeTargetCls(nodeCls)
+		# nodes may do internal setup - prevent signals until fully complete
+		self.signalComponent.pauseDeltaGathering()
 		node = nodeCls.create(name, uid=uid, graph=self)
-		# dataTrees = nodeCls.defaultParamTree(name=name)
-		# node = nodeCls(self, nodeParams=dataTrees)
 		if add:
 			self.addNode(node)
+		# emit any signals from node
+		self.signalComponent.unPauseDeltaGathering(emitStoredDeltas=True)
 		return node
 
 	def addNode(self, node:ChimaeraNode):

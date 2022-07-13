@@ -7,7 +7,7 @@ from chimaera.plugnode import PlugNode
 from chimaera.constant import INPUT_NAME, OUTPUT_NAME, DataUse, DataType
 
 from PySide2 import QtCore, QtWidgets, QtGui
-
+from chimaera.ui.delegate import GraphItemDelegateAbstract
 
 class Knob(QtWidgets.QGraphicsRectItem):
 	"""handle marking inputs and outputs"""
