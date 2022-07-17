@@ -43,6 +43,9 @@ class DataUse(metaclass=DataUseMeta):
 	def __post_init__(self):
 		knownTypes[self.name] = self
 
+	def __str__(self):
+		return f"DataUse({self.name})"
+
 
 
 

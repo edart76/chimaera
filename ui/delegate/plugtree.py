@@ -8,61 +8,32 @@ from chimaera.constant import INPUT_NAME, OUTPUT_NAME, DataUse, DataType
 
 from PySide2 import QtCore, QtWidgets, QtGui
 from chimaera.ui.delegate import GraphItemDelegateAbstract
+from chimaera.ui.delegate.node import NodeDelegate
+from chimaera.ui.delegate.connectionpoint import ConnectionPointGraphicsItemMixin
+from chimaera.ui.delegate.knob import Knob
 
-class Knob(QtWidgets.QGraphicsRectItem):
+class PlugKnob(Knob):
 	"""handle marking inputs and outputs"""
 	def __init__(self, plug:PlugTree, parent=None,):
-		super(Knob, self).__init__(parent)
+		super(PlugKnob, self).__init__(parent)
+		ConnectionPointGraphicsItemMixin.__init__(self, plug.uid)
 		self.baseSize = 20
 		self.setRect(0,0, self.baseSize, self.baseSize)
 		if not plug:
 			raise RuntimeError("no attrItem supplied")
 		self.plug = plug
 
-		self.text = QtWidgets.QGraphicsTextItem(self.plug.name, parent=self)
-
-		self.pen = QtGui.QPen()
-		self.pen.setStyle(QtCore.Qt.NoPen)
-		self.brush = QtGui.QBrush(self.colour(),
-		                          bs=QtCore.Qt.SolidPattern)
-		self.setPen(self.pen)
-		self.setBrush(self.brush)
-		self.setAcceptHoverEvents(True)
-
-		# align text
-		textY = self.rect().height() / 2
-		if self.plug.isInput():
-			textX = -self.rect().width() - self.text.textWidth()
-		else:
-			textX = self.rect().width()
-		self.text.setPos(textX, textY)
+		self.text.setPlainText(self.plug.name)
+		self.text.setRotation(0.0)
 
 
 	def colour(self):
-		return QtGui.QColor(*self.tree.dataType.colour)
+		return QtGui.QColor(*self.plug.dataType.colour)
 
-	def __repr__(self):
-		return self.name
 
-	# visuals
-	def hoverEnterEvent(self, event):
-		"""tweak to allow knob to expand pleasingly when you touch it"""
-		self.setTumescent()
 
-	def hoverLeaveEvent(self, event):
-		"""return knob to normal flaccid state"""
-		self.setFlaccid()
-
-	def setTumescent(self):
-		scale = 1.3
-		new = int(self.baseSize * scale)
-		newOrigin = (new - self.baseSize) / 2
-		self.setRect(-newOrigin, -newOrigin, new, new)
-
-	def setFlaccid(self):
-		self.setRect(0, 0, self.baseSize, self.baseSize)
-
-class PlugTreeDelegate(QtWidgets.QGraphicsItem):
+#class PlugTreeDelegate(QtWidgets.QGraphicsItem):
+class PlugTreeDelegate(QtWidgets.QGraphicsRectItem, NodeDelegate):
 	"""draw tree of plugs for plug node"""
 
 	def __init__(self, plug:PlugTree, treeDepthOffset:int=20, height=20, parent=None):
@@ -75,9 +46,12 @@ class PlugTreeDelegate(QtWidgets.QGraphicsItem):
 		self.setFlag(QtWidgets.QGraphicsItem.ItemIsFocusable, False)
 
 		self.childDelegates : list[QtWidgets.QGraphicsItem] = []
-		self.knob = Knob( plug=plug, parent=self)
+		self.knob = PlugKnob(plug=plug, parent=self)
 		self.sync()
 
+	@property
+	def node(self):
+		return self.plug
 
 	def isInput(self) -> bool:
 		"""return true if this is an input tree"""

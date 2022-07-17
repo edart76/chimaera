@@ -42,10 +42,12 @@ class GraphItemDelegateAbstract:
 	def __init__(self, graphItems:T.Sequence[graphItemType]=None, # parent=None,
 	             ):
 		self.graphItems = list(graphItems)
+		self.setFlag(QtWidgets.QGraphicsItem.ItemIsSelectable, False)
 		# try:
 		# 	super(GraphItemDelegate, self).__init__(parent)
 		# except: # multiple inheriat
 		# 	pass
+
 
 
 	# @classmethod

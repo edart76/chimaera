@@ -78,6 +78,8 @@ class ChimaeraGraphView(MouseDragView):
 	def __init__(self, parent:ChimaeraGraphWidget=None):
 		super(ChimaeraGraphView, self).__init__(parent)
 		self.setBackgroundBrush(BackgroundGridPixmap.drawPattern(10))
+
+		self.setMouseTracking(True)
 	
 	def parent(self) -> ChimaeraGraphWidget:
 		return super(ChimaeraGraphView, self).parent()

@@ -5,6 +5,7 @@ import typing as T
 from networkx import Graph
 
 from tree import Signal
+from tree.lib.sequence import flatten
 
 if T.TYPE_CHECKING:
 	from chimaera import ChimaeraNode
@@ -26,6 +27,7 @@ class GraphNodeDelta(DeltaAtom):
 
 	def doDelta(self, target:ChimaeraGraph):
 		target.signalComponent.pauseDeltaGathering()
+		print("node doDelta")
 		if self.added:
 			target.add_nodes_from(self.added)
 		if self.removed:
@@ -42,8 +44,8 @@ class GraphNodeDelta(DeltaAtom):
 
 	@classmethod
 	def combined(cls, deltas:list[cls]) ->list[cls]:
-		added = set(*i.added for i in deltas)
-		removed = set(*i.removed for i in deltas)
+		added = set(flatten(tuple(i.added) for i in deltas))
+		removed = set(flatten(tuple(i.removed) for i in deltas))
 		base = cls(added, removed)
 		return [base]
 
@@ -57,13 +59,18 @@ class GraphEdgeDelta(DeltaAtom):
 
 	@classmethod
 	def combined(cls, deltas:list[cls]) ->list[cls]:
-		added = set(*i.added for i in deltas)
-		removed = set(*i.removed for i in deltas)
+		added = set()
+		for i in deltas:
+			added.update(i.added)
+		removed = set()
+		for i in deltas:
+			removed.update(i.removed)
 		base = cls(added, removed)
 		return [base]
 
 	def doDelta(self, target:ChimaeraGraph):
 		target.signalComponent.pauseDeltaGathering()
+		print("edge doDelta")
 		if self.added:
 			target.add_edges_from(self.added)
 		if self.removed:
@@ -72,7 +79,7 @@ class GraphEdgeDelta(DeltaAtom):
 
 
 	def undoDelta(self, target:ChimaeraGraph):
-		target.signalComponent.pausedDeltaGathering()
+		target.signalComponent.pauseDeltaGathering()
 		if self.added:
 			target.remove_edges_from(self.added)
 		if self.removed:
@@ -145,16 +152,19 @@ class GraphDeltaSignalComponent:
 
 	def pauseDeltaGathering(self):
 		self.pausedDeltaGathering = True
-		return GraphSignalContext(self, muteSignals=True)
+		#return GraphSignalContext(self, muteSignals=True)
 
 	def unPauseDeltaGathering(self, emitStoredDeltas=True):
+		#print("unpausing delta gathering")
 		self.pausedDeltaGathering = False
 		if emitStoredDeltas:
 			# combine deltas
-			nodeDelta = GraphNodeDelta.combined(self.storedDeltas["node"])
-			edgeDelta = GraphEdgeDelta.combined(self.storedDeltas["edge"])
-			self.emitDelta(nodeDelta)
-			self.emitDelta(edgeDelta)
+			#print("stored", self.storedDeltas)
+			nodeDeltas = GraphNodeDelta.combined(self.storedDeltas["node"])
+			edgeDeltas = GraphEdgeDelta.combined(self.storedDeltas["edge"])
+			#print("combined", nodeDeltas, edgeDeltas)
+			for i in nodeDeltas + edgeDeltas:
+				self.emitDelta(i)
 		self.clearStoredDeltas()
 
 
@@ -163,6 +173,8 @@ class GraphDeltaSignalComponent:
 		only add the delta if deltaGathering is not paused"""
 		self.deltaAdded.emit(delta)
 
+		#print("emitting delta", self.pausedDeltaGathering, delta)
+
 		if self.pausedDeltaGathering: # store up deltas to combine
 			if isinstance(delta, GraphNodeDelta):
 				self.storedDeltas["node"].append(delta)
@@ -170,7 +182,9 @@ class GraphDeltaSignalComponent:
 				self.storedDeltas["edge"].append(delta)
 
 		else: # emit the delta
+			#print("not paused", delta, type(delta), isinstance(delta, GraphNodeDelta))
 			if isinstance(delta, GraphNodeDelta):
+				#print("emitDelta nodes ", delta)
 				self.nodesChanged.emit(delta)
 			if isinstance(delta, GraphEdgeDelta):
 				self.edgesChanged.emit(delta)
@@ -182,7 +196,7 @@ class GraphDeltaSignalComponent:
 		return set(graph.nodes)
 
 	def gatherEdgeSet(self, graph:Graph):
-		#print("gather edge set", graph.edges)
+		#print("gather edge set", set(graph.edges))
 		return set(graph.edges)
 
 	def _deltaFromSets(self, baseSet, newSet, deltaCls:T.Type[DeltaAtom]):
@@ -214,6 +228,9 @@ class GraphDeltaSignalComponent:
 			# build deltas
 			nodeDelta = self.deltaFromNodeSets(baseNodeSet, newNodeSet)
 			edgeDelta = self.deltaFromEdgeSets(baseEdgeSet, newEdgeSet)
+
+			#print("wrapFn", instanceFn.__name__, "paused", self.pausedDeltaGathering)
+
 			if nodeDelta:
 				if nodeDelta.added or nodeDelta.removed:
 					self.emitDelta(nodeDelta)
@@ -229,6 +246,7 @@ class GraphTransaction:
 	might be a better option to compare serialised state of nodes and edges -
 	more sensitive to deep state changes"""
 	def __init__(self, graph:ChimaeraGraph):
+		print("graph transaction init")
 		self.graph = graph
 		self.baseNodeSet : set[ChimaeraNode] = set()
 		self.baseEdgeSet : set[tuple] = set()

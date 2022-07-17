@@ -2,25 +2,26 @@
 
 from __future__ import annotations
 
-import random
-import colorsys
-from tree import Tree
+import random, colorsys, traceback
+from weakref import WeakKeyDictionary
 
 from typing import TYPE_CHECKING, Union, Dict, List
 import typing as T
 
-
+from tree import Tree
 from PySide2 import QtCore, QtWidgets, QtGui
+
 
 if TYPE_CHECKING:
 	from chimaera.ui.view import ChimaeraGraphView
-	from chimaera.ui.widget import ChimaeraGraphWidget
+	from chimaera.ui.graphwidget import ChimaeraGraphWidget
 
 from treegraph.ui.style import (VIEWER_BG_COLOR,
                                       VIEWER_GRID_COLOR,
                                       VIEWER_GRID_OVERLAY)
 from treegraph.ui import relax
 from tree.ui.lib import KeyState, keyDict
+from tree.ui.graphics.lib import allGraphicsSceneItems, allGraphicsChildItems
 from tree.lib.inheritance import superClassLookup, containsSuperClass
 from tree.ui.libwidget.draggraphicsscene import MouseDragScene
 
@@ -32,8 +33,10 @@ from chimaera.lib.query import GraphQuery
 from chimaera.ui.base import GraphicsItemChange
 from chimaera.ui.delegate import GraphItemDelegateAbstract, NodeDelegate, EdgeDelegate, PlugNodeDelegate, PlugTreeDelegate
 from chimaera.lib.topology import orderNodes
+from chimaera.ui.delegate.connectionpoint import ConnectionPointSceneMixin, ConnectionPointGraphicsItemMixin
 
 from chimaera.ui import graphItemType
+from chimaera.ui.constant import SelectionStatus
 
 debugEvents = False
 
@@ -45,13 +48,15 @@ def randomPastel(seed):
 	rgb = colorsys.hsv_to_rgb(h, s, v)
 	return rgb
 
-class ChimaeraGraphScene(MouseDragScene):
+class ChimaeraGraphScene(MouseDragScene, ConnectionPointSceneMixin):
 	"""graphics scene for ChimaeraGraph
 	different specific views (tree node view, treeGraph node view) may define
 	their own drawing delegates - all should inherit from this
 
 	only top-level items are visible to scene - GraphDelegate items can change internally,
 	but if the element of a top-level item is deleted, remove that item
+
+	for sanity we assume one graphicsScene per graphicsView - no shame
 
 	"""
 
@@ -70,7 +75,11 @@ class ChimaeraGraphScene(MouseDragScene):
 		classes, since the delegate selection system is delegated"""
 		cls.validDelegates.add(delegateCls)
 
+	# endregion
+
 	itemChanged = QtCore.Signal(GraphicsItemChange)
+
+
 
 
 	def __init__(self, parent:ChimaeraGraphWidget=None
@@ -78,16 +87,32 @@ class ChimaeraGraphScene(MouseDragScene):
 		super(ChimaeraGraphScene, self).__init__(parent)
 
 		self.graphDelegateItems : set[GraphItemDelegateAbstract] = set()
+		self.nodeDelegateMap : dict[ChimaeraNode, NodeDelegate] = {}
 
-		self.background_color = VIEWER_BG_COLOR
 		self.grid = VIEWER_GRID_OVERLAY
-		self.grid_color = VIEWER_GRID_COLOR
 
 		self.graphQuery : GraphQuery = None
+
+		self.mouseGrabberItem()
+
+		self.rubberBand = self.makeRubberBand()
+		self.addItem(self.rubberBand)
+
+		# element visibility rules - absolutely no idea how to set this up properly
+		self.knobVisibilityOverrides : dict[ConnectionPointSceneMixin, (bool, None)] = WeakKeyDictionary()
+
+		# viewer states
+		# if draggingEdgeSource is not None, then we are dragging an edge
+		self.draggingEdgeSource : ConnectionPointSceneMixin = None
+		# if draggingSelectionBox, track the starting corner of a selection box
+		self.draggingSelectionBox = False
+
+		self.dragOrigin : QtCore.QPointF = None
 
 		# signal hookups
 		self.selectionChanged.connect(self.onSceneSelectionChanged)
 
+	#region core
 	def setGraph(self, graph:ChimaeraGraph):
 		"""connect signals"""
 		graph.signalComponent.nodesChanged.connect(self.onGraphElementsChanged)
@@ -130,6 +155,12 @@ class ChimaeraGraphScene(MouseDragScene):
 		return {element : delegate for element, delegate in self.elementDelegateMap().items() if isinstance(delegate, NodeDelegate)}
 	def pipes(self)->dict[tuple, EdgeDelegate]:
 		return {edge : delegate for edge, delegate in self.elementDelegateMap().items() if isinstance(delegate, EdgeDelegate)}
+	def connectionPoints(self) ->list[ConnectionPointGraphicsItemMixin]:
+		return [item for item in self.items() if isinstance(item, ConnectionPointGraphicsItemMixin)]
+
+	def delegateForNode(self, node:ChimaeraNode)->NodeDelegate:
+		"""return the delegate for a node - may not be top level, or visible"""
+		return self.nodeDelegateMap[node]
 
 	def elementForDelegate(self, delegate:GraphItemDelegateAbstract)->graphItemType:
 		"""return graph element for delegate"""
@@ -168,6 +199,7 @@ class ChimaeraGraphScene(MouseDragScene):
 		check first with delegate instances, then with delegate classes
 
 		"""
+		print("generateItemsForGraphElements", elements)
 		elementSet = set(elements)
 		result = []
 
@@ -175,6 +207,7 @@ class ChimaeraGraphScene(MouseDragScene):
 
 		# iterate
 		# ensure elements are removed from set when delegates generated for them
+		print("sorted generators", delegateGenerators)
 		baseSetLen = len(elementSet)
 		while elementSet and delegateGenerators:
 			testGenerator = delegateGenerators.pop(0)
@@ -186,7 +219,7 @@ class ChimaeraGraphScene(MouseDragScene):
 			print("delegate cls", testGenerator, "items", newItems)
 
 			# check set lengths are valid
-			assert baseSetLen <= (len(elementSet) + len(newItems)), f"delegate {testGenerator} did not properly remove items from new element pool \n{elementSet}\n when making new items \n{newItems}"
+			# assert baseSetLen <= (len(elementSet) + len(newItems)), f"delegate {testGenerator} did not properly remove items from new element pool \n{elementSet}\n when making new items \n{newItems}"
 			baseSetLen = len(elementSet)
 
 			result.extend(newItems)
@@ -201,14 +234,34 @@ class ChimaeraGraphScene(MouseDragScene):
 		"""add a uniform delegate type, connect its signals"""
 		self.graphDelegateItems.add(delegate)
 		self.itemChanged.connect(delegate.onSceneItemChange)
+
 		self.addItem(delegate)
+
+		# iterate over all children to find nodes
+		for i in allGraphicsChildItems(delegate):
+			if isinstance(i, NodeDelegate):
+				self.nodeDelegateMap[i.node] = i
+
 		delegate.sync()
 
 	def removeGraphItemDelegate(self, delegate:GraphItemDelegateAbstract):
 		self.graphDelegateItems.remove(delegate)
 		self.removeItem(delegate)
 
+	def tryAddEdge(self,
+	               sourcePoint:ConnectionPointGraphicsItemMixin,
+	               destPoint:ConnectionPointGraphicsItemMixin,
+	               ):
+		"""delegate adding edge to connectionPointDelegates"""
 
+		try:
+			sourcePoint.addConnectionToPoint(destPoint)
+		except Exception as e:
+			print("failed to add edge to graph")
+			traceback.print_exc()
+
+
+	#endregion
 
 	### region graph signal functions, direct match to tree signals
 	def onGraphElementsChanged(self, delta:GraphNodeDelta):
@@ -217,6 +270,7 @@ class ChimaeraGraphScene(MouseDragScene):
 
 		query by query first
 		"""
+		print("graph elements changed", delta)
 		if self.graphQuery is None:
 			nodes, edges = set(self.graph().nodes), set(self.graph().edges)
 		else:
@@ -229,8 +283,10 @@ class ChimaeraGraphScene(MouseDragScene):
 
 		# add any new elements
 		items = self.generateItemsForGraphElements(added)
+
 		for i in items:
 			self.addGraphItemDelegate(i)
+			#raise
 
 		# query any removed elements to delete delegates
 		for i in delta.removed:
@@ -240,11 +296,20 @@ class ChimaeraGraphScene(MouseDragScene):
 				self.removeGraphItemDelegate(
 					self.mainElementDelegateMap()[i])
 
+	def volatileItems(self)->list[QtWidgets.QGraphicsItem]:
+		"""return list of items that are not persistent"""
+		return [i for i in self.items() if i not in
+		        (self.rubberBand, )]
+
+	def redraw(self):
+		self.update(self.sceneRect())
 
 	def sync(self):
 		"""fully clears and resets scene - may be costly
 		use until we need more targeted processing"""
-		self.clear()
+		#self.clear()
+		for i in self.volatileItems():
+			self.removeItem(i)
 		# add node delegates
 		nodeDelta = GraphNodeDelta(added=set(self.graph().nodes))
 		self.onGraphElementsChanged(nodeDelta)
@@ -254,6 +319,8 @@ class ChimaeraGraphScene(MouseDragScene):
 		self.onGraphElementsChanged(edgeDelta)
 
 		self.layoutTiles()
+		self.redraw()
+
 
 	# endregion
 
@@ -270,19 +337,125 @@ class ChimaeraGraphScene(MouseDragScene):
 		for i in self.tiles().values():
 			i.onSceneSelectionChanged()
 
+	def processSelectionAction(self, newNodes:list[NodeDelegate]):
+		ctrl = self.keyState.ctrl
+		shift = self.keyState.shift
+		newNodes = set(newNodes)
+		currentNodes = set(self.selectedTiles())
+
+		# toggle extend node selection
+		# ctrl : remove
+		# shift : toggle
+		# ctrl + shift : add
+
+		if shift and not ctrl:  # toggle
+			toAdd = newNodes - currentNodes
+			toRemove = currentNodes - newNodes
+			# redo this to some kind of transaction system
+			for i in toAdd:
+				i.setSelected(True)
+			for i in toRemove:
+				i.setSelected(False)
+
+		elif ctrl and not shift: # remove
+			for i in currentNodes:
+				i.setSelected(False)
+		elif ctrl and shift: # add
+			for i in newNodes:
+				i.setSelected(True)
+
+		else: # replace
+			toKeep = newNodes.intersection(currentNodes)
+			for i in currentNodes - toKeep:
+				i.setSelected(False)
+			for i in newNodes - toKeep:
+				i.setSelected(True)
+
+	def beginDrawingEdge(self, sourcePoint:ConnectionPointGraphicsItemMixin):
+		"""begin drawing an edge from a given point to cursor position
+		hide any connectionPoints in scene that aren't compatible with it"""
+		self.draggingEdgeSource = sourcePoint
+
+		# hide connections
+		for i in self.connectionPoints():
+			if i is sourcePoint:
+				continue
+			if not i.acceptsConnection(sourcePoint):
+				i.hide()
+
+	def endDrawingEdge(self, targetPoint:ConnectionPointGraphicsItemMixin=None):
+		"""end drawing process - if no point is passed, edge was dragged out into
+		empty space - just leave it
+		if point is passed, create edge between source and target"""
+		if targetPoint is None:
+			self.draggingEdgeSource = None
+			return
+
+
+		# show connections
+		for i in self.connectionPoints():
+			i.show()
+
+		self.draggingEdgeSource = None
+
+
+
 	#region events
 	def mousePressEvent(self, event):
-		if debugEvents: print("scene mousePress")
+		print("start scene mousePress sel", self.selectedTiles())
 		super(ChimaeraGraphScene, self).mousePressEvent(event)
+		print("after super scene mousePress sel", self.selectedTiles())
+		self.dragOrigin = event.scenePos()
 		if event.isAccepted():
-			if debugEvents: print("scene mousePress accepted, returning")
+			print("scene mousePress accepted, returning")
 			return True
-		selected_nodes = self.selectedTiles()
-		# if self.activeView:
-		# 	self.activeView.beginDrawPipes(event)
+
+		pos = event.scenePos()
+		items = self.items(pos)
+		pressNodes = [i for i in items if isinstance(i, NodeDelegate)]
+
+		if self.keyState.LMB:
+			self.draggingSelectionBox = True
+			self.rubberBand.setRect(pos.x(), pos.y(), 0, 0)
+		self.redraw()
+		print("end scene mousePress sel", self.selectedTiles())
+
+
+	def mouseMoveEvent(self, event):
+		super(ChimaeraGraphScene, self).mouseMoveEvent(event)
+		if self.keyState.LMB and self.dragOrigin is not None:
+			self.rubberBand.setRect(QtCore.QRectF(
+				self.dragOrigin, event.scenePos()).normalized().toRect())
+			self.rubberBand.show()
+		else:
+			self.rubberBand.hide()
+
+		self.redraw()
+
 
 	def mouseReleaseEvent(self, event):
+		print("start mouse release selection", self.selectedTiles())
+
 		super(ChimaeraGraphScene, self).mouseReleaseEvent(event)
+		print("mouse release selection", self.selectedTiles())
+
+		if event.isAccepted():
+			print("scene mouseRelease accepted, returning")
+			return True
+		print("mouse release selection", self.selectedTiles())
+		if event.button() == QtCore.Qt.MouseButton.LeftButton and self.dragOrigin is not None:
+			rubberBandNodes = self.items(self.rubberBand.rect())
+			rubberBandNodes = [i for i in rubberBandNodes if isinstance(i, NodeDelegate)]
+			self.processSelectionAction(rubberBandNodes)
+			self.draggingSelectionBox = False
+			self.dragOrigin = None
+
+			self.rubberBand.hide()
+			self.rubberBand.update()
+			self.redraw()
+		print("mouse release selection", self.selectedTiles())
+
+	#self.removeItem(self.rubberBand)
 
 	def keyPressEvent(self, event):
 		super(ChimaeraGraphScene, self).keyPressEvent(event)

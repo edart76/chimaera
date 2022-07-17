@@ -8,6 +8,7 @@ from PySide2 import QtCore, QtWidgets, QtGui
 
 from tree import TreeWidget
 from tree.ui.lib import AllEventEater
+from tree.ui.graphics.lib import allGraphicsSceneItems, allGraphicsChildItems
 from tree.ui.atomicwidget import AtomicWidget, StringWidget
 from tree.ui.libwidget.atomicproxywiget import AtomicProxyWidget
 
@@ -18,6 +19,9 @@ from chimaera.constant import DataUse
 from chimaera.ui import graphItemType
 from chimaera.ui.base import GraphicsItemChange
 from .graphitem import GraphItemDelegateAbstract
+from chimaera.ui.constant import SelectionStatus
+from chimaera.ui.delegate.connectionpoint import ConnectionPointGraphicsItemMixin
+from chimaera.ui.delegate.knob import Knob
 
 if T.TYPE_CHECKING:
 	from chimaera.ui.scene import ChimaeraGraphScene
@@ -40,6 +44,8 @@ class NodeDelegate(GraphItemDelegateAbstract, QtWidgets.QGraphicsItem):
 
 	connection points for edges are consistent heights on node
 
+	node shape is determined by tree widget
+
 	 """
 
 	@classmethod
@@ -54,8 +60,10 @@ class NodeDelegate(GraphItemDelegateAbstract, QtWidgets.QGraphicsItem):
 
 	def __init__(self, node:ChimaeraNode=None,  parent=None,
 	             ):
-		super(NodeDelegate, self).__init__(graphItems=[node])
 		QtWidgets.QGraphicsItem.__init__(self, parent=parent)
+		GraphItemDelegateAbstract.__init__(self, graphItems=[node])
+
+
 		self.settingsProxy :SettingsProxy = None
 		self.settingsWidg : TreeWidget = None
 
@@ -73,14 +81,24 @@ class NodeDelegate(GraphItemDelegateAbstract, QtWidgets.QGraphicsItem):
 		self.setFlag(QtWidgets.QGraphicsItem.ItemIsSelectable)
 
 		# appearance
+		self.edgePadding = 2
 		self.colour = (50, 50, 120)
 		self.borderColour = (200,200,250)
+		self.nameTagProxy.setPos(self.edgePadding, self.edgePadding)
 		textColour = QtGui.QColor(200, 200, 200)
 		self.classTag.setDefaultTextColor(textColour)
 		self.classTag.setPos(self.boundingRect().width() + 2, 0)
 
-		self.settingsProxy.setPos(0,
+		#self.settingsProxy.setGeometry(QtCore.QRectF(0, 0, 300, 300))
+
+		self.settingsProxy.setPos(self.edgePadding,
 		                          self.nameTagProxy.rect().bottom() + 10)
+
+		self.knobs = {
+			"in" : {dataUse : Knob(self.node, dataUse, isOutput=False, parent=self) for dataUse in DataUse},
+			"out" : {dataUse : Knob(self.node, dataUse, isOutput=True, parent=self) for dataUse in DataUse},
+		}
+
 
 		self.makeConnections()
 
@@ -88,6 +106,7 @@ class NodeDelegate(GraphItemDelegateAbstract, QtWidgets.QGraphicsItem):
 	@property
 	def node(self)->ChimaeraNode:
 		return self.mainGraphElement()
+
 
 	def scene(self) -> ChimaeraGraphScene:
 		return super(NodeDelegate, self).scene()
@@ -99,12 +118,28 @@ class NodeDelegate(GraphItemDelegateAbstract, QtWidgets.QGraphicsItem):
 	def _onNameTagChanged(self, text:str):
 		self.node.name = text
 
+	def connectionPointForDataUse(self, dataUse:DataUse, asOutput=False) -> ConnectionPointGraphicsItemMixin:
+		"""return a connectionPoint to use for this data, on this node,
+		as input or output"""
+		if asOutput:
+			return self.knobs["out"][dataUse]
+		else:
+			return self.knobs["in"][dataUse]
+
+
 	def sync(self, *args, **kwargs):
 		self.syncFromNode()
 
 	def syncFromNode(self):
 		"""reset ui state to match that of node"""
 		self.nameTag.setAtomValue(self.node.name)
+
+	def arrange(self):
+		"""place plugs properly on borders of node"""
+		for use, points in self.edgePointMap().items():
+			self.knobs["in"][use].setPos(points[0])
+			self.knobs["out"][use].setPos(points[1])
+
 
 	def onNodeEval(self):
 		self.syncFromNode()
@@ -154,11 +189,11 @@ class NodeDelegate(GraphItemDelegateAbstract, QtWidgets.QGraphicsItem):
 
 		#minHeight += self.settingsProxy.rect().height()
 
-		return minRect.width(), minRect.height()
+		return minRect.width() + self.edgePadding, minRect.height() + self.edgePadding
 
 	def boundingRect(self):
 		minWidth, minHeight = self.getSize()
-		return QtCore.QRect(0, 0, minWidth, minHeight)
+		return QtCore.QRect(-self.edgePadding, -self.edgePadding, minWidth, minHeight)
 
 	def paint(self, painter, option, widget):
 		"""Paint the main background shape of the node"""
@@ -184,10 +219,6 @@ class NodeDelegate(GraphItemDelegateAbstract, QtWidgets.QGraphicsItem):
 		#painter.drawRoundRect(rect, radius_x, radius_y)
 		painter.drawRect(rect)
 
-		# if self.isSelected():
-		# 	painter.setBrush(QtGui.QColor(*NODE_SEL_COLOR))
-		# 	painter.drawRoundRect(rect, radius_x, radius_y)
-
 		label_rect = QtCore.QRectF(rect.left() + (radius_x / 2),
 								   rect.top() + (radius_x / 2),
 								   self.width - (radius_x / 1.25),
@@ -211,19 +242,30 @@ class NodeDelegate(GraphItemDelegateAbstract, QtWidgets.QGraphicsItem):
 		painter.setBrush(QtCore.Qt.NoBrush)
 		painter.setPen(QtGui.QPen(border_color, border_width))
 		painter.drawPath(path)
+
+		if self.isSelected():
+			path = QtGui.QPainterPath()
+			path.addRoundedRect(border_rect, radius_x, radius_y)
+			pen = QtGui.QPen(QtGui.QColor(*SelectionStatus.Selected.colour), 2)
+			painter.setPen(pen)
+			painter.drawPath(path)
+
+
 		painter.restore()
 
 	def addSettings(self, tree):
 		"""create a new abstractTree widget and add it to the bottom of node"""
 		self.settingsProxy = SettingsProxy(self)
 
-		topWidg = QtWidgets.QApplication.topLevelWidgets()[0]
+		#topWidg = QtWidgets.QApplication.topLevelWidgets()[0]
 		self.settingsWidg = TreeWidget(
 			tree=tree,
 			scanForWidgets=True,
 		                               )
 		self.settingsProxy.setWidget(self.settingsWidg)
 		self.settingsWidg.resizeToTree()
+
+		self.settingsProxy.setGeometry(self.settingsWidg.geometry())
 
 		return self.settingsWidg
 

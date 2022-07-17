@@ -57,8 +57,7 @@ class GraphTree(TreeInterface, ChimaeraNode):
 	             treeUid=None,
 	             graph:ChimaeraGraph=None, nodeParams:NodeDataTree=None):
 
-		# coupled dependency here to allow creation of trees in isolation
-		# can remove if needed
+		# if no graph is given, create a new mini-graph here for this tree
 		if graph is None:
 			from chimaera.core.graph import ChimaeraGraph
 			graph = ChimaeraGraph()
@@ -66,7 +65,6 @@ class GraphTree(TreeInterface, ChimaeraNode):
 		nodeParams = nodeParams or self.defaultParamTree(name, uid=treeUid)
 		ChimaeraNode.__init__(self, graph, nodeParams)
 
-		graph.addNode(self)
 		self.setGraph(graph)
 
 		#print("before tree init", self.params().serialise())
@@ -175,8 +173,10 @@ class GraphTree(TreeInterface, ChimaeraNode):
 		return newBranch
 
 	def _setParent(self, parentBranch:GraphTree, index=-1):
+		branchNodes = self.allBranches(includeSelf=True)
 		super(GraphTree, self)._setParent(parentBranch)
 		self.connectTreeNodes(parentBranch, self, index)
+
 		self.setGraph(parentBranch.graph())
 
 	def _remove(self, branch:GraphTree):

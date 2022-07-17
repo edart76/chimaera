@@ -92,7 +92,10 @@ class ChimaeraGraph(nx.MultiDiGraph):
 		"""creates new node and params
 		if string is given as class, will look up node class from registered
 		class catalogue"""
+		print("")
+
 		nodeCls = self._getCreateNodeTargetCls(nodeCls)
+		print(f"creating node {name}, {nodeCls}")
 		# nodes may do internal setup - prevent signals until fully complete
 		self.signalComponent.pauseDeltaGathering()
 		node = nodeCls.create(name, uid=uid, graph=self)
@@ -104,7 +107,6 @@ class ChimaeraGraph(nx.MultiDiGraph):
 
 	def addNode(self, node:ChimaeraNode):
 		"""assumes nodes are unique per node params"""
-		#self.nodeMap[node.baseParams] = node
 		self.add_node(node)
 
 	def removeNode(self, node:(ChimaeraNode, NodeDataHolder)):

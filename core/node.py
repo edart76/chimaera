@@ -105,6 +105,8 @@ class ChimaeraNode(DataFacade, #PostInitMixin
 
 	def setGraph(self, graph:ChimaeraGraph):
 		self._graph = graph
+		if not self in graph:
+			graph.addNode(self)
 	def graph(self)->ChimaeraGraph:
 		return self._graph
 

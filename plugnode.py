@@ -21,11 +21,11 @@ class PlugNode( GraphTree):
 
 		# create input output trees
 		# need some kind of transaction system to avoid UI interfering immediately
-		self.inPlug = PlugTree(INPUT_NAME)
-		self.outPlug = PlugTree(OUTPUT_NAME)
+		self.inPlug = PlugTree(INPUT_NAME, graph=graph)
+		self.outPlug = PlugTree(OUTPUT_NAME, graph=graph)
 
-		print("plugNode init", self.branches)
-		print("inplug", self.inPlug)
+		# print("plugNode init", self.branches)
+		# print("inplug", self.inPlug)
 
 
 	def childNodes(self)->list[PlugNode]:

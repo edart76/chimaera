@@ -12,6 +12,7 @@ from chimaera.ui import graphItemType
 from chimaera.ui.delegate.node import NodeDelegate
 from chimaera.ui.base import GraphicsItemChange#, dataColourMap
 from .graphitem import GraphItemDelegateAbstract
+from chimaera.ui.delegate.connectionpoint import ConnectionPointGraphicsItemMixin
 
 if T.TYPE_CHECKING:
 	from chimaera.ui.scene import ChimaeraGraphScene
@@ -86,27 +87,30 @@ class EdgeDelegate(
 	def graph(self)->ChimaeraGraph:
 		return self.scene().graph()
 
-	@property
-	def start(self)->ChimaeraNode:
+
+	def startNode(self)->ChimaeraNode:
 		return self.edgeTuple[0]
 
-	@property
-	def startDelegate(self)->NodeDelegate:
-		return self.scene().tiles()[self.start]
+	def startNodeDelegate(self)->NodeDelegate:
+		return self.scene().delegateForNode(self.startNode())
 
 	def startUse(self)->DataUse:
 		return self.edgeData()["fromUse"]
 
-	@property
-	def end(self) -> ChimaeraNode:
+	def startConnectPoint(self)->ConnectionPointGraphicsItemMixin:
+		return self.startNodeDelegate().connectionPointForDataUse(self.startUse(), asOutput=False)
+
+	def endConnectPoint(self)->ConnectionPointGraphicsItemMixin:
+		return self.endNodeDelegate().connectionPointForDataUse(self.endUse(), asOutput=True)
+
+	def endNode(self)->ChimaeraNode:
 		return self.edgeTuple[1]
 
-	@property
-	def endDelegate(self) -> NodeDelegate:
-		return self.scene().tiles()[self.end]
+	def endNodeDelegate(self)->NodeDelegate:
+		return self.scene().tiles()[self.endNode()]
 
-	def endUse(self)->DataUse:
-		return self.edgeData()["toUse"]
+
+
 
 
 	@property
@@ -118,16 +122,17 @@ class EdgeDelegate(
 
 	def startPoint(self)->QtCore.QPoint:
 		"""point on start node delegate to originate edge"""
-		return self.startDelegate.edgePointMap()[self.startUse()][1]
+		return self.startNodeDelegate.edgePointMap()[self.startUse()][1]
 
 	def endPoint(self)->QtCore.QPoint:
 		"""point on start node delegate to originate edge"""
-		return self.endDelegate.edgePointMap()[self.endUse()][0]
+		return self.endNodeDelegate.edgePointMap()[self.endUse()][0]
 
 	def sync(self, *args, **kwargs):
 		# build gradient
 		self.startCol = QtGui.QColor(*self.edgeData()["fromUse"].edgeColour)
 		self.endCol = QtGui.QColor(*self.edgeData()["toUse"].edgeColour)
+		return
 		gradient = QtGui.QLinearGradient(0.0, 0.0, 1.0, 1.0)
 		gradient.setColorAt(0.0, self.startCol)
 		gradient.setColorAt(1.0, self.endCol)
@@ -157,12 +162,14 @@ class EdgeDelegate(
 		return super(EdgeDelegate, self).itemChange(change, value)
 
 	def onSceneItemChange(self, change:GraphicsItemChange):
+		return
 		if change.item is self:
 			return
-		if change.item in (self.startDelegate, self.endDelegate):
+		if change.item in (self.startNodeDelegate, self.endNodeDelegate):
 			self.sync()
 			
 	def paint(self, painter:QtGui.QPainter, option:QtWidgets.QStyleOptionGraphicsItem, widget:QtWidgets.QWidget=...) -> None:
+		return
 		self.setPath(self.path())
 		if self.startUse() == self.endUse(): # no colour changing
 			return super(EdgeDelegate, self).paint(painter, option, widget)
