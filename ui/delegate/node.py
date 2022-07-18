@@ -18,9 +18,8 @@ from chimaera import ChimaeraGraph, ChimaeraNode
 from chimaera.constant import DataUse
 from chimaera.ui import graphItemType
 from chimaera.ui.base import GraphicsItemChange
-from .graphitem import GraphItemDelegateAbstract
 from chimaera.ui.constant import SelectionStatus
-from chimaera.ui.delegate.connectionpoint import ConnectionPointGraphicsItemMixin
+from chimaera.ui.delegate.abstract import ConnectionPointGraphicsItemMixin, GraphItemDelegateAbstract, AbstractNodeContainer
 from chimaera.ui.delegate.knob import Knob
 
 if T.TYPE_CHECKING:
@@ -39,7 +38,8 @@ class PlugDelegate(QtWidgets.QGraphicsEllipseItem):
 		self.nameTag = QtWidgets.QGraphicsTextItem(self.name, self)
 		self.setRect(0, 0, 20, 20)
 
-class NodeDelegate(GraphItemDelegateAbstract, QtWidgets.QGraphicsItem):
+class NodeDelegate(GraphItemDelegateAbstract, AbstractNodeContainer,
+                   QtWidgets.QGraphicsItem):
 	""" drawing for individual chimaera nodes
 
 	connection points for edges are consistent heights on node
@@ -47,6 +47,7 @@ class NodeDelegate(GraphItemDelegateAbstract, QtWidgets.QGraphicsItem):
 	node shape is determined by tree widget
 
 	 """
+	instancesMayCreateDelegates = True
 
 	@classmethod
 	def delegatesForElements(cls, scene:ChimaeraGraphScene, itemPool:set[graphItemType]) ->T.Sequence[GraphItemDelegateAbstract]:
@@ -62,6 +63,7 @@ class NodeDelegate(GraphItemDelegateAbstract, QtWidgets.QGraphicsItem):
 	             ):
 		QtWidgets.QGraphicsItem.__init__(self, parent=parent)
 		GraphItemDelegateAbstract.__init__(self, graphItems=[node])
+		AbstractNodeContainer.__init__(self, [node])
 
 
 		self.settingsProxy :SettingsProxy = None

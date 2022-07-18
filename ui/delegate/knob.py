@@ -5,10 +5,12 @@ from chimaera import ChimaeraNode, ChimaeraGraph
 from chimaera.plugtree import PlugTree
 from chimaera.plugnode import PlugNode
 from chimaera.constant import INPUT_NAME, OUTPUT_NAME, DataUse, DataType
+from chimaera.datause import DataUse, UiPlugPosition
 
 from PySide2 import QtCore, QtWidgets, QtGui
 from chimaera.ui.delegate import GraphItemDelegateAbstract
-from chimaera.ui.delegate.connectionpoint import ConnectionPointGraphicsItemMixin
+from chimaera.ui.delegate.abstract import ConnectionPointGraphicsItemMixin
+
 
 class Knob(QtWidgets.QGraphicsRectItem,
                ConnectionPointGraphicsItemMixin):
@@ -53,7 +55,7 @@ class Knob(QtWidgets.QGraphicsRectItem,
 
 		# align text
 		textY = self.rect().height() / 2
-		if self.plug.isInput():
+		if isOutput:
 			textX = -self.rect().width() - self.text.textWidth()
 		else:
 			textX = self.rect().width()
@@ -82,6 +84,13 @@ class Knob(QtWidgets.QGraphicsRectItem,
 				self.hide()
 		else:
 			self.setVisible(self.visibilityOverride())
+
+	def connectionDirection(self) ->QtCore.QPoint:
+		"""return the direction of the connection from this knob"""
+		if self.isOutput:
+			return QtCore.QPoint(1, 0)
+		else:
+			return QtCore.QPoint(-1, 0)
 
 	def acceptsConnection(self, sourcePoint:Knob) ->bool:
 		"""return whether this knob accepts connections from the given knob"""

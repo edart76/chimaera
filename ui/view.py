@@ -500,7 +500,7 @@ class ChimaeraGraphASDAFView(QtWidgets.QGraphicsView):
 		if state:
 			rect = self.tabSearch.rect()
 			new_pos = QtCore.QPoint(pos.x() - rect.width() / 2,
-			                        pos.y() - rect.height() / 2)
+			                        pos.y() - rect.heightOffset() / 2)
 			self.tabSearch.move(new_pos)
 			self.tabSearch.setValidStrings(
 				list(self.graph.registeredNodeClasses.keys()))

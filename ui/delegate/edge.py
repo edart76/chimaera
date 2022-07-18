@@ -11,8 +11,7 @@ from chimaera import ChimaeraGraph, ChimaeraNode, DataUse
 from chimaera.ui import graphItemType
 from chimaera.ui.delegate.node import NodeDelegate
 from chimaera.ui.base import GraphicsItemChange#, dataColourMap
-from .graphitem import GraphItemDelegateAbstract
-from chimaera.ui.delegate.connectionpoint import ConnectionPointGraphicsItemMixin
+from chimaera.ui.delegate.abstract import ConnectionPointGraphicsItemMixin, GraphItemDelegateAbstract, AbstractNodeContainer
 
 if T.TYPE_CHECKING:
 	from chimaera.ui.scene import ChimaeraGraphScene
@@ -49,7 +48,14 @@ class EdgeDelegate(
 	QtWidgets.QGraphicsPathItem,
 	GraphItemDelegateAbstract
 ):
-	"""tis a noble thing to be a bridge between knobs"""
+	"""tis a noble thing to be a bridge between knobs
+	at the moment this directly maps graph edges 1:1 - consider for
+	allowing purely visual network items like Houdini's pins, let this
+	class be abstract, representing the semantic connection,
+	while containing multiple "SpanDelegates" to actually draw the lines from
+	whatever to whatever
+
+	"""
 
 	@classmethod
 	def delegatesForElements(cls, scene:ChimaeraGraphScene, itemPool:set[graphItemType]) ->T.Sequence[GraphItemDelegateAbstract]:
@@ -91,23 +97,31 @@ class EdgeDelegate(
 	def startNode(self)->ChimaeraNode:
 		return self.edgeTuple[0]
 
-	def startNodeDelegate(self)->NodeDelegate:
+	def startNodeDelegate(self)->(NodeDelegate, AbstractNodeContainer):
 		return self.scene().delegateForNode(self.startNode())
 
 	def startUse(self)->DataUse:
 		return self.edgeData()["fromUse"]
 
 	def startConnectPoint(self)->ConnectionPointGraphicsItemMixin:
-		return self.startNodeDelegate().connectionPointForDataUse(self.startUse(), asOutput=False)
+		"""we want the output of the source node"""
+		return self.startNodeDelegate().connectionPointForDataUse(self.startUse(), asOutput=True)
 
-	def endConnectPoint(self)->ConnectionPointGraphicsItemMixin:
-		return self.endNodeDelegate().connectionPointForDataUse(self.endUse(), asOutput=True)
 
 	def endNode(self)->ChimaeraNode:
 		return self.edgeTuple[1]
 
-	def endNodeDelegate(self)->NodeDelegate:
-		return self.scene().tiles()[self.endNode()]
+	def endNodeDelegate(self)->(NodeDelegate, AbstractNodeContainer):
+		return self.scene().delegateForNode(self.endNode())
+
+	def endUse(self)->DataUse:
+		return self.edgeData()["toUse"]
+
+	def endConnectPoint(self)->ConnectionPointGraphicsItemMixin:
+		"""we want the input of the destination node"""
+		return self.endNodeDelegate().connectionPointForDataUse(self.endUse(), asOutput=False)
+
+
 
 
 
@@ -118,15 +132,15 @@ class EdgeDelegate(
 		return self.edgeTuple[2]
 
 	def edgeData(self)->dict:
-		return self.graph()[self.start][self.end][self.key]
+		return self.graph()[self.startNode()][self.endNode()][self.key]
 
-	def startPoint(self)->QtCore.QPoint:
-		"""point on start node delegate to originate edge"""
-		return self.startNodeDelegate.edgePointMap()[self.startUse()][1]
-
-	def endPoint(self)->QtCore.QPoint:
-		"""point on start node delegate to originate edge"""
-		return self.endNodeDelegate.edgePointMap()[self.endUse()][0]
+	# def startPoint(self)->QtCore.QPoint:
+	# 	"""point on start node delegate to originate edge"""
+	# 	return self.startNodeDelegate.edgePointMap()[self.startUse()][1]
+	#
+	# def endPoint(self)->QtCore.QPoint:
+	# 	"""point on start node delegate to originate edge"""
+	# 	return self.endNodeDelegate.edgePointMap()[self.endUse()][0]
 
 	def sync(self, *args, **kwargs):
 		# build gradient
@@ -151,8 +165,8 @@ class EdgeDelegate(
 
 	def path(self)->QtGui.QPainterPath:
 		path = QtGui.QPainterPath()
-		path.moveTo(self.startPoint())
-		path.lineTo(self.endPoint())
+		path.moveTo(self.startConnectPoint().connectionPosition())
+		path.lineTo(self.endConnectPoint().connectionPosition())
 		return path
 
 	def itemChange(self, change:QtWidgets.QGraphicsItem.GraphicsItemChange, value):
@@ -182,7 +196,8 @@ class EdgeDelegate(
 		                         option,
 		                         widget)
 
-
+	def __repr__(self):
+		return f"EdgeDelegate<{self.edgeTuple}>"
 	# def paint(self, painter, option, widget):
 	# 	color = QtGui.QColor(*self._color)
 	# 	pen_style = PIPE_STYLES.get(self.style)

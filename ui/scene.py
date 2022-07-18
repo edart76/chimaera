@@ -31,9 +31,9 @@ from chimaera import ChimaeraGraph, ChimaeraNode
 from chimaera.lib.delta import GraphEdgeDelta, GraphNodeDelta
 from chimaera.lib.query import GraphQuery
 from chimaera.ui.base import GraphicsItemChange
-from chimaera.ui.delegate import GraphItemDelegateAbstract, NodeDelegate, EdgeDelegate, PlugNodeDelegate, PlugTreeDelegate
+from chimaera.ui.delegate import NodeDelegate, EdgeDelegate, PlugNodeDelegate, PlugTreeDelegate
 from chimaera.lib.topology import orderNodes
-from chimaera.ui.delegate.connectionpoint import ConnectionPointSceneMixin, ConnectionPointGraphicsItemMixin
+from chimaera.ui.delegate.abstract import ConnectionPointGraphicsItemMixin, ConnectionPointSceneMixin, GraphItemDelegateAbstract, AbstractNodeContainer
 
 from chimaera.ui import graphItemType
 from chimaera.ui.constant import SelectionStatus
@@ -87,13 +87,11 @@ class ChimaeraGraphScene(MouseDragScene, ConnectionPointSceneMixin):
 		super(ChimaeraGraphScene, self).__init__(parent)
 
 		self.graphDelegateItems : set[GraphItemDelegateAbstract] = set()
-		self.nodeDelegateMap : dict[ChimaeraNode, NodeDelegate] = {}
+		self.itemDelegateMap : dict[ChimaeraNode, NodeDelegate] = {}
 
 		self.grid = VIEWER_GRID_OVERLAY
 
 		self.graphQuery : GraphQuery = None
-
-		self.mouseGrabberItem()
 
 		self.rubberBand = self.makeRubberBand()
 		self.addItem(self.rubberBand)
@@ -111,6 +109,15 @@ class ChimaeraGraphScene(MouseDragScene, ConnectionPointSceneMixin):
 
 		# signal hookups
 		self.selectionChanged.connect(self.onSceneSelectionChanged)
+
+	def makeRubberBand(self) ->QtWidgets.QGraphicsRectItem:
+		"""make a rubber band item"""
+		rect = QtWidgets.QGraphicsRectItem()
+		pen = QtGui.QPen(QtCore.Qt.DotLine)
+		pen.setColor(QtCore.Qt.lightGray)
+		pen.setWidth(2)
+		rect.setPen(pen)
+		return rect
 
 	#region core
 	def setGraph(self, graph:ChimaeraGraph):
@@ -133,6 +140,10 @@ class ChimaeraGraphScene(MouseDragScene, ConnectionPointSceneMixin):
 
 	def graph(self)->ChimaeraGraph:
 		return self.parent().graph
+
+	def elementDelegates(self)->set[GraphItemDelegateAbstract]:
+		"""return set of all delegates"""
+		return [ i for i in allGraphicsSceneItems(self) if isinstance(i, GraphItemDelegateAbstract)]
 
 	def elementDelegateMap(self)->dict[graphItemType, GraphItemDelegateAbstract]:
 		"""return map of {graph element : drawing delegate}
@@ -158,9 +169,7 @@ class ChimaeraGraphScene(MouseDragScene, ConnectionPointSceneMixin):
 	def connectionPoints(self) ->list[ConnectionPointGraphicsItemMixin]:
 		return [item for item in self.items() if isinstance(item, ConnectionPointGraphicsItemMixin)]
 
-	def delegateForNode(self, node:ChimaeraNode)->NodeDelegate:
-		"""return the delegate for a node - may not be top level, or visible"""
-		return self.nodeDelegateMap[node]
+
 
 	def elementForDelegate(self, delegate:GraphItemDelegateAbstract)->graphItemType:
 		"""return graph element for delegate"""
@@ -182,7 +191,8 @@ class ChimaeraGraphScene(MouseDragScene, ConnectionPointSceneMixin):
 		# collect possible generators of delegates to check over
 		# instances first
 		instanceGeneratorClasses = tuple(self.instanceDelegateGeneratorClasses())
-		generatorDelegateInstances = [i for i in self.mainElementDelegateMap().values() if isinstance(i, instanceGeneratorClasses)]
+
+		generatorDelegateInstances = [i for i in allGraphicsSceneItems(self) if isinstance(i, instanceGeneratorClasses)]
 		# sort by class priority
 		generatorDelegateInstances = list(sorted(generatorDelegateInstances, key=lambda x: x.delegatePriority, reverse=True))
 
@@ -199,7 +209,6 @@ class ChimaeraGraphScene(MouseDragScene, ConnectionPointSceneMixin):
 		check first with delegate instances, then with delegate classes
 
 		"""
-		print("generateItemsForGraphElements", elements)
 		elementSet = set(elements)
 		result = []
 
@@ -207,7 +216,7 @@ class ChimaeraGraphScene(MouseDragScene, ConnectionPointSceneMixin):
 
 		# iterate
 		# ensure elements are removed from set when delegates generated for them
-		print("sorted generators", delegateGenerators)
+		#print("sorted generators", delegateGenerators)
 		baseSetLen = len(elementSet)
 		while elementSet and delegateGenerators:
 			testGenerator = delegateGenerators.pop(0)
@@ -216,7 +225,7 @@ class ChimaeraGraphScene(MouseDragScene, ConnectionPointSceneMixin):
 			else:
 				genFn = testGenerator.delegatesForElements
 			newItems = genFn(scene=self, itemPool=elementSet)
-			print("delegate cls", testGenerator, "items", newItems)
+			#print("delegate cls", testGenerator, "items", newItems)
 
 			# check set lengths are valid
 			# assert baseSetLen <= (len(elementSet) + len(newItems)), f"delegate {testGenerator} did not properly remove items from new element pool \n{elementSet}\n when making new items \n{newItems}"
@@ -230,6 +239,11 @@ class ChimaeraGraphScene(MouseDragScene, ConnectionPointSceneMixin):
 
 		return result
 
+
+	def delegateForNode(self, node:ChimaeraNode)->NodeDelegate:
+		"""return the delegate for a node - may not be top level, or visible"""
+		return self.itemDelegateMap[node]
+
 	def addGraphItemDelegate(self, delegate:GraphItemDelegateAbstract):
 		"""add a uniform delegate type, connect its signals"""
 		self.graphDelegateItems.add(delegate)
@@ -240,9 +254,18 @@ class ChimaeraGraphScene(MouseDragScene, ConnectionPointSceneMixin):
 		# iterate over all children to find nodes
 		for i in allGraphicsChildItems(delegate):
 			if isinstance(i, NodeDelegate):
-				self.nodeDelegateMap[i.node] = i
-
+				self.itemDelegateMap[i.node] = i
+			elif isinstance(i, AbstractNodeContainer):
+				for n in i.nodes:
+					self.itemDelegateMap[n] = i
 		delegate.sync()
+
+		# print("scene post add")
+		# print(allGraphicsChildItems(delegate, includeSelf=True))
+		# print(allGraphicsSceneItems(self))
+
+	def nodeContainerMap(self):
+		return {node : container for node, container in allGraphicsSceneItems(self) if isinstance(container, AbstractNodeContainer)}
 
 	def removeGraphItemDelegate(self, delegate:GraphItemDelegateAbstract):
 		self.graphDelegateItems.remove(delegate)
@@ -402,12 +425,12 @@ class ChimaeraGraphScene(MouseDragScene, ConnectionPointSceneMixin):
 
 	#region events
 	def mousePressEvent(self, event):
-		print("start scene mousePress sel", self.selectedTiles())
+		#print("start scene mousePress sel", self.selectedTiles())
 		super(ChimaeraGraphScene, self).mousePressEvent(event)
-		print("after super scene mousePress sel", self.selectedTiles())
+		#print("after super scene mousePress sel", self.selectedTiles())
 		self.dragOrigin = event.scenePos()
 		if event.isAccepted():
-			print("scene mousePress accepted, returning")
+			#print("scene mousePress accepted, returning")
 			return True
 
 		pos = event.scenePos()
@@ -418,7 +441,7 @@ class ChimaeraGraphScene(MouseDragScene, ConnectionPointSceneMixin):
 			self.draggingSelectionBox = True
 			self.rubberBand.setRect(pos.x(), pos.y(), 0, 0)
 		self.redraw()
-		print("end scene mousePress sel", self.selectedTiles())
+		#print("end scene mousePress sel", self.selectedTiles())
 
 
 	def mouseMoveEvent(self, event):
@@ -434,15 +457,15 @@ class ChimaeraGraphScene(MouseDragScene, ConnectionPointSceneMixin):
 
 
 	def mouseReleaseEvent(self, event):
-		print("start mouse release selection", self.selectedTiles())
+		#print("start mouse release selection", self.selectedTiles())
 
 		super(ChimaeraGraphScene, self).mouseReleaseEvent(event)
-		print("mouse release selection", self.selectedTiles())
+		#print("mouse release selection", self.selectedTiles())
 
 		if event.isAccepted():
-			print("scene mouseRelease accepted, returning")
+			#print("scene mouseRelease accepted, returning")
 			return True
-		print("mouse release selection", self.selectedTiles())
+		#print("mouse release selection", self.selectedTiles())
 		if event.button() == QtCore.Qt.MouseButton.LeftButton and self.dragOrigin is not None:
 			rubberBandNodes = self.items(self.rubberBand.rect())
 			rubberBandNodes = [i for i in rubberBandNodes if isinstance(i, NodeDelegate)]
@@ -453,7 +476,7 @@ class ChimaeraGraphScene(MouseDragScene, ConnectionPointSceneMixin):
 			self.rubberBand.hide()
 			self.rubberBand.update()
 			self.redraw()
-		print("mouse release selection", self.selectedTiles())
+		#print("mouse release selection", self.selectedTiles())
 
 	#self.removeItem(self.rubberBand)
 

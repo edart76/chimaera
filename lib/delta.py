@@ -49,6 +49,13 @@ class GraphNodeDelta(DeltaAtom):
 		base = cls(added, removed)
 		return [base]
 
+	@classmethod
+	def flattened(cls, deltas:list[cls]) ->list[cls]:
+		"""for now identical to above, but explicitly only returns one delta"""
+		added = set(flatten(tuple(i.added) for i in deltas))
+		removed = set(flatten(tuple(i.removed) for i in deltas))
+		base = cls(added, removed)
+		return base
 
 @dataclass
 class GraphEdgeDelta(DeltaAtom):

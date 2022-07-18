@@ -46,7 +46,7 @@ class PlugNode( GraphTree):
 	def containedPlugEdges(self)->list[tuple]:
 		"""return all edges contained between this node and its plugs"""
 		nBunch = self.inPlug.allBranches() + self.outPlug.allBranches() + [self]
-		return self.graph().edges(nBunch)
+		return list(self.graph().edges(nBunch))
 
 	def execute(self, inputFlowData:GraphData) ->GraphData:
 		"""for a plug node, we gather flow data from all input plug nodes,

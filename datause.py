@@ -44,7 +44,10 @@ class DataUse(metaclass=DataUseMeta):
 		knownTypes[self.name] = self
 
 	def __str__(self):
-		return f"DataUse({self.name})"
+		return f"DataUse<{self.name}>"
+
+	def __repr__(self):
+		return str(self)
 
 
 

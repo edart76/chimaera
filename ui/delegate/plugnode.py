@@ -11,13 +11,16 @@ from chimaera.constant import INPUT_NAME, OUTPUT_NAME, DataUse, DataType
 
 from PySide2 import QtCore, QtWidgets, QtGui
 from chimaera.ui.delegate.plugtree import PlugTreeDelegate
-from chimaera.ui.delegate.node import NodeDelegate, GraphItemDelegateAbstract
+from chimaera.ui.delegate.node import NodeDelegate
+from chimaera.ui.delegate.knob import Knob
+from chimaera.ui.delegate.abstract import GraphItemDelegateAbstract, AbstractNodeContainer, ConnectionPointGraphicsItemMixin
 
 if T.TYPE_CHECKING:
 	from chimaera.ui.scene import ChimaeraGraphScene
 	from chimaera.ui import graphItemType
 
 class PlugNodeDelegate(NodeDelegate):
+	"""consider leaving connection points at top and bottom to show tree hierarchy"""
 
 	delegatePriority = 1
 
@@ -32,26 +35,35 @@ class PlugNodeDelegate(NodeDelegate):
 				itemPool.remove(i)
 
 				# gather plugs
-				nodePlugs = i.inPlug.allBranches() + i.outPlug.allBranches()
+				nodePlugs = i.inPlug.allBranches() + i.outPlug.allBranches() + [i]
 
 				# gather any edges between them
-				internalEdges = i.containedPlugEdges()
+				internalEdges = scene.graph().edges(nodePlugs, keys=True)
 				itemPool.difference_update(nodePlugs)
 				itemPool.difference_update(internalEdges)
+
 
 		return result
 
 	def __init__(self, node:PlugNode, parent=None):
 		super(PlugNodeDelegate, self).__init__(node, parent)
-
-		print("node", node)
-		print("branches", node.branches)
-
 		self.inPlugDelegate = PlugTreeDelegate(node.inPlug, parent=self)
 		self.outPlugDelegate = PlugTreeDelegate(node.outPlug, parent=self)
 
 		self.outPlugDelegate.setPos(self.boundingRect().width(), 0)
 
+		for i in (self.inPlugDelegate, self.outPlugDelegate):
+			i.arrange()
+
+	def instanceDelegatesForElements(self, scene:ChimaeraGraphScene, itemPool:set[graphItemType]) ->T.Sequence[GraphItemDelegateAbstract]:
+		"""check for any internal node edges, remove them from consideration"""
+		result = []
+		nodePlugs = self.node.inPlug.allBranches() + self.node.outPlug.allBranches() + [self.node]
+		# gather any edges between them
+		internalEdges = scene.graph().edges(nodePlugs, keys=True)
+		itemPool.difference_update(nodePlugs)
+		itemPool.difference_update(internalEdges)
+		return result
 
 	pass
 
