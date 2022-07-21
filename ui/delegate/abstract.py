@@ -77,6 +77,14 @@ class ConnectionPointGraphicsItemMixin( # type hinting
 		self.sync()
 		pass
 
+
+	def stickyRange(self):
+		"""range over which cursor and connections will stick to this"""
+		return 20
+
+	def mouseOverStickyRange(self, state=True):
+		"""triggered when mouse comes within the sticky range of this point"""
+
 	def sync(self):
 		"""sync visual state with internal state"""
 		pass
@@ -221,3 +229,6 @@ class GraphItemDelegateAbstract:
 		return {
 			"pos" :	(self.pos().x(), self.pos().y()),
 			}
+
+	def __repr__(self):
+		return f"{self.__class__.__name__}<{self.graphItems}>"

@@ -196,6 +196,45 @@ class EdgeDelegate(
 		                         option,
 		                         widget)
 
+	@classmethod
+	def pathBetween(cls, posA, dirA, posB, dirB, scene:QtWidgets.QGraphicsScene=None)->QtGui.QPainterPath:
+		"""allow for difference drawing systems here"""
+		path = QtGui.QPainterPath()
+		path.moveTo(posA)
+		path.cubicTo(dirA, dirB, posB)
+		return path
+
+	@classmethod
+	def potentialPen(cls):
+		pen = QtGui.QPen()
+		pen.setColor(QtGui.QColor(128, 128, 128, 128))
+		pen.setDashPattern([1, 1])
+		pen.setWidth(2)
+		pen.setBrush(QtGui.QBrush(QtGui.QColor(254, 0, 0)))
+		return pen
+
+	@classmethod
+	def paintPotentialPath(cls, painter:QtGui.QPainter, pointA:ConnectionPointGraphicsItemMixin,
+	                   pointB:(QtCore.QPointF, ConnectionPointGraphicsItemMixin),
+	                       scene=None) -> None:
+		"""called when edge is being dragged, not yet real"""
+		posA = pointA.connectionPosition()
+		dirA = pointA.connectionDirection()
+		path = QtGui.QPainterPath()
+		if isinstance(pointB, QtCore.QPointF): # being dragged directly to cursor
+			posB = pointB
+			dirB = pointB
+		elif isinstance(pointB, ConnectionPointGraphicsItemMixin):
+			posB = pointB.connectionPosition()
+			dirB = pointB.connectionDirection()
+
+		path = cls.pathBetween(posA, dirA, posB, dirB, scene=scene)
+		painter.save()
+		painter.setPen(cls.potentialPen())
+		painter.drawPath(path)
+		painter.restore()
+
+
 	def __repr__(self):
 		return f"EdgeDelegate<{self.edgeTuple}>"
 	# def paint(self, painter, option, widget):
@@ -311,4 +350,30 @@ class EdgeDelegate(
 	#
 	# def delete(self):
 	# 	pass
+
+class PointPath(QtWidgets.QGraphicsPathItem):
+	"""simple line between 2 points"""
+	def __init__(self,
+	             scene):
+		super(PointPath, self).__init__()
+		self.scene = scene
+		# path = QtGui.QPainterPath(posA)
+		# path.cubicTo(dirA, dirB, posB)
+		# self.setPath(path)
+
+	def setPoints(self, posA, dirA=None, posB=None, dirB=None):
+		path = QtGui.QPainterPath(posA)
+		if dirA is None and dirB is None:
+			path.lineTo(posB)
+		else:
+			path.cubicTo(dirA, dirB, posB)
+		self.setPath(path)
+
+	def paint(self, painter:QtGui.QPainter, option:QtWidgets.QStyleOptionGraphicsItem, widget=...) -> None:
+		painter.save()
+		painter.setPen(self.pen())
+		painter.setBrush(self.brush())
+		painter.drawPath(self.path())
+		painter.restore()
+		pass
 

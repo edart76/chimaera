@@ -50,10 +50,34 @@ class PlugNodeDelegate(NodeDelegate):
 		self.inPlugDelegate = PlugTreeDelegate(node.inPlug, parent=self)
 		self.outPlugDelegate = PlugTreeDelegate(node.outPlug, parent=self)
 
-		self.outPlugDelegate.setPos(self.boundingRect().width(), 0)
 
 		for i in (self.inPlugDelegate, self.outPlugDelegate):
 			i.arrange()
+			pass
+
+		self.sync()
+
+
+	def makeKnobs(self) ->dict[str, dict[DataUse, Knob]]:
+		"""leave only tree hierarchy plugs"""
+		return {
+			"in": {
+				DataUse.Tree : Knob(self.node, DataUse.Tree, isOutput=False,
+				                    parent=self),
+				},
+			"out": {
+				DataUse.Tree: Knob(self.node, DataUse.Tree, isOutput=True,
+				                   parent=self),
+			}
+		}
+
+	def arrange(self):
+
+		self.inPlugDelegate.setPos(self.boundingRect().left() - self.inPlugDelegate.childrenBoundingRect().width(), self.detailHeightLevel())
+		self.outPlugDelegate.setPos(self.boundingRect().right(), self.detailHeightLevel())
+
+		self.arrangeKnobs()
+
 
 	def instanceDelegatesForElements(self, scene:ChimaeraGraphScene, itemPool:set[graphItemType]) ->T.Sequence[GraphItemDelegateAbstract]:
 		"""check for any internal node edges, remove them from consideration"""

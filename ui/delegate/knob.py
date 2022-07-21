@@ -60,7 +60,12 @@ class Knob(QtWidgets.QGraphicsRectItem,
 		else:
 			textX = self.rect().width()
 		self.text.setPos(textX, textY)
-		self.text.setRotation(45)
+		if self.dataUse.uiPosition == DataUse.UiPlugPosition.TopBottom:
+			if self.isOutput:
+				self.text.setRotation(45)
+			else:
+				self.text.setPos(textX, -textY)
+				self.text.setRotation(-45)
 
 		self.hide()
 
@@ -88,9 +93,13 @@ class Knob(QtWidgets.QGraphicsRectItem,
 	def connectionDirection(self) ->QtCore.QPoint:
 		"""return the direction of the connection from this knob"""
 		if self.isOutput:
-			return QtCore.QPoint(1, 0)
+			result = QtCore.QPoint(1, 0)
 		else:
-			return QtCore.QPoint(-1, 0)
+			result = QtCore.QPoint(-1, 0)
+
+		if self.dataUse.uiPosition == DataUse.UiPlugPosition.TopBottom:
+			result = result.transposed()
+		return result
 
 	def acceptsConnection(self, sourcePoint:Knob) ->bool:
 		"""return whether this knob accepts connections from the given knob"""
@@ -116,20 +125,30 @@ class Knob(QtWidgets.QGraphicsRectItem,
 	def getNodeAndDataUse(self)->(ChimaeraNode, DataUse):
 		return self.node, self.dataUse
 
-	# visuals
+	def stickyRange(self):
+		return self.showRange
+
+	def mouseOverStickyRange(self, state=True):
+		if state:
+			self.setTumescent()
+		else:
+			self.setFlaccid()
+
 	def hoverEnterEvent(self, event):
 		"""tweak to allow knob to expand pleasingly when you touch it"""
-		self.setTumescent()
+		self.mouseOverStickyRange(True)
 
 	def hoverLeaveEvent(self, event):
 		"""return knob to normal flaccid state"""
-		self.setFlaccid()
+		self.mouseOverStickyRange(False)
 
 	def setTumescent(self):
+		"""allow knob to expand pleasingly when you touch it"""
 		scale = 1.3
 		new = int(self.baseSize * scale)
 		newOrigin = (new - self.baseSize) / 2
 		self.setRect(-newOrigin, -newOrigin, new, new)
 
 	def setFlaccid(self):
+		"""return knob to dejected flaccid state"""
 		self.setRect(0, 0, self.baseSize, self.baseSize)

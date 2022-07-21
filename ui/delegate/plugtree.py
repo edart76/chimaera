@@ -27,6 +27,12 @@ class PlugKnob(Knob):
 		self.text.setPlainText(self.node.name)
 		self.text.setRotation(0.0)
 
+		if self.isOutput:
+			self.text.setPos(self.rect().width() + 5, 0)
+		else:
+			self.text.setPos(-self.rect().width() - 5 - self.text.textWidth(), 0)
+
+
 
 	def colour(self):
 		return QtGui.QColor(*self.node.dataType.colour)
@@ -49,6 +55,8 @@ class PlugTreeDelegate(QtWidgets.QGraphicsRectItem, GraphItemDelegateAbstract,
 		self.setFlag(QtWidgets.QGraphicsItem.ItemIsSelectable, False)
 		self.setFlag(QtWidgets.QGraphicsItem.ItemIsMovable, False)
 		self.setFlag(QtWidgets.QGraphicsItem.ItemIsFocusable, False)
+
+		#self.setRect(0,0, self.depthOffset, self.heightOffset)
 
 		self.childDelegates : list[QtWidgets.QGraphicsItem] = []
 		self.knob = PlugKnob(plug=self.node, parent=self)
@@ -83,15 +91,17 @@ class PlugTreeDelegate(QtWidgets.QGraphicsRectItem, GraphItemDelegateAbstract,
 	def sync(self, *args, **kwargs):
 		"""clear and rebuild all plug items below this"""
 		self.arrange()
-		for child in self.childDelegates:
-			self.scene().removeItem(child)
-		self.childDelegates = [PlugTreeDelegate(i, parent=self) for i in self.node.branches]
-		self.arrange()
+		# for child in self.childDelegates:
+		# 	self.scene().removeItem(child)
+		# self.childDelegates = [PlugTreeDelegate(i, parent=self) for i in self.node.branches]
+		# for i in self.childDelegates:
+		# 	self.scene().addItem(i)
+		# self.arrange()
 
 
-	def paint(self, painter:QtGui.QPainter, option:QtWidgets.QStyleOptionGraphicsItem, widget:QtWidgets.QWidget=...) -> None:
-		"""paint the delegate"""
-		return QtWidgets.QGraphicsRectItem.paint(self, painter, option, widget)
+	# def paint(self, painter:QtGui.QPainter, option:QtWidgets.QStyleOptionGraphicsItem, widget:QtWidgets.QWidget=...) -> None:
+	# 	"""paint the delegate"""
+	# 	return QtWidgets.QGraphicsRectItem.paint(self, painter, option, widget)
 
 
 

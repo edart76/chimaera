@@ -50,7 +50,7 @@ class DataUse(metaclass=DataUseMeta):
 		return str(self)
 
 
-
+DataUse.UiPlugPosition = UiPlugPosition
 
 Anchor = DataUse("Anchor")
 Creator = DataUse("Creator", edgeColour=(100, 200, 100))

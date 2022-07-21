@@ -31,12 +31,13 @@ from chimaera import ChimaeraGraph, ChimaeraNode
 from chimaera.lib.delta import GraphEdgeDelta, GraphNodeDelta
 from chimaera.lib.query import GraphQuery
 from chimaera.ui.base import GraphicsItemChange
-from chimaera.ui.delegate import NodeDelegate, EdgeDelegate, PlugNodeDelegate, PlugTreeDelegate
+from chimaera.ui.delegate import NodeDelegate, EdgeDelegate, PlugNodeDelegate, PlugTreeDelegate, PointPath
 from chimaera.lib.topology import orderNodes
 from chimaera.ui.delegate.abstract import ConnectionPointGraphicsItemMixin, ConnectionPointSceneMixin, GraphItemDelegateAbstract, AbstractNodeContainer
 
 from chimaera.ui import graphItemType
 from chimaera.ui.constant import SelectionStatus
+from chimaera.ui.lib.connection import curvedPoints
 
 debugEvents = False
 
@@ -97,11 +98,17 @@ class ChimaeraGraphScene(MouseDragScene, ConnectionPointSceneMixin):
 		self.addItem(self.rubberBand)
 
 		# element visibility rules - absolutely no idea how to set this up properly
-		self.knobVisibilityOverrides : dict[ConnectionPointSceneMixin, (bool, None)] = WeakKeyDictionary()
+		# self.knobVisibilityOverrides : dict[ConnectionPointSceneMixin, (bool, None)] = WeakKeyDictionary()
 
 		# viewer states
 		# if draggingEdgeSource is not None, then we are dragging an edge
-		self.draggingEdgeSource : ConnectionPointSceneMixin = None
+		self.draggingEdgeSource : ConnectionPointGraphicsItemMixin = None
+		#self.draggingEdgePath : QtWidgets.QGraphicsPathItem = QtWidgets.QGraphicsPathItem()
+		self.draggingEdgePath : PointPath = PointPath(self)
+		self.addItem(self.draggingEdgePath)
+		pen = QtGui.QPen(QtCore.Qt.red)
+		pen.setWidth(2)
+		self.draggingEdgePath.setPen(pen)
 		# if draggingSelectionBox, track the starting corner of a selection box
 		self.draggingSelectionBox = False
 
@@ -259,6 +266,8 @@ class ChimaeraGraphScene(MouseDragScene, ConnectionPointSceneMixin):
 				for n in i.nodes:
 					self.itemDelegateMap[n] = i
 		delegate.sync()
+		for i in self.connectionPoints():
+			i.show()
 
 		# print("scene post add")
 		# print(allGraphicsChildItems(delegate, includeSelf=True))
@@ -322,7 +331,7 @@ class ChimaeraGraphScene(MouseDragScene, ConnectionPointSceneMixin):
 	def volatileItems(self)->list[QtWidgets.QGraphicsItem]:
 		"""return list of items that are not persistent"""
 		return [i for i in self.items() if i not in
-		        (self.rubberBand, )]
+		        (self.rubberBand, self.draggingEdgePath)]
 
 	def redraw(self):
 		self.update(self.sceneRect())
@@ -399,6 +408,16 @@ class ChimaeraGraphScene(MouseDragScene, ConnectionPointSceneMixin):
 		hide any connectionPoints in scene that aren't compatible with it"""
 		self.draggingEdgeSource = sourcePoint
 
+		# draw temp edge - not necessary to delegate to point item yet
+		path = QtGui.QPainterPath()
+		pen = EdgeDelegate.potentialPen()
+		#self.draggingEdgePath = QtWidgets.QGraphicsPathItem()
+		#self.addItem(self.draggingEdgePath)
+
+		self.draggingEdgePath.prepareGeometryChange()
+		self.draggingEdgePath.setPen(pen)
+		self.draggingEdgePath.setPath(path)
+
 		# hide connections
 		for i in self.connectionPoints():
 			if i is sourcePoint:
@@ -406,20 +425,19 @@ class ChimaeraGraphScene(MouseDragScene, ConnectionPointSceneMixin):
 			if not i.acceptsConnection(sourcePoint):
 				i.hide()
 
+		self.draggingEdgePath.show()
+
 	def endDrawingEdge(self, targetPoint:ConnectionPointGraphicsItemMixin=None):
 		"""end drawing process - if no point is passed, edge was dragged out into
 		empty space - just leave it
 		if point is passed, create edge between source and target"""
-		if targetPoint is None:
-			self.draggingEdgeSource = None
-			return
-
 
 		# show connections
 		for i in self.connectionPoints():
 			i.show()
 
 		self.draggingEdgeSource = None
+		self.draggingEdgePath.hide()
 
 
 
@@ -438,20 +456,50 @@ class ChimaeraGraphScene(MouseDragScene, ConnectionPointSceneMixin):
 		pressNodes = [i for i in items if isinstance(i, NodeDelegate)]
 
 		if self.keyState.LMB:
-			self.draggingSelectionBox = True
-			self.rubberBand.setRect(pos.x(), pos.y(), 0, 0)
+			if not items: # only begin dragging selection box if no items are under cursor
+				self.draggingSelectionBox = True
+				self.rubberBand.setRect(pos.x(), pos.y(), 0, 0)
+
+			# check if we need to start dragging a new edge
+			points = [i for i in items if isinstance(i, ConnectionPointGraphicsItemMixin)]
+			if points:
+				self.beginDrawingEdge(points[0])
 		self.redraw()
 		#print("end scene mousePress sel", self.selectedTiles())
 
 
 	def mouseMoveEvent(self, event):
 		super(ChimaeraGraphScene, self).mouseMoveEvent(event)
-		if self.keyState.LMB and self.dragOrigin is not None:
+
+		# check for connection points in range
+
+		if self.keyState.LMB and self.dragOrigin is not None and self.draggingSelectionBox:
 			self.rubberBand.setRect(QtCore.QRectF(
 				self.dragOrigin, event.scenePos()).normalized().toRect())
 			self.rubberBand.show()
 		else:
 			self.rubberBand.hide()
+
+		items = self.items(event.scenePos())
+
+		if self.draggingEdgeSource is not None:
+			hoverConnectPoints = [i for i in items if isinstance(i, ConnectionPointGraphicsItemMixin)]
+
+			# stick to connection points when you hover over them
+			posA =  self.draggingEdgeSource.mapToScene(
+				self.draggingEdgeSource.connectionPosition())
+
+			dirA = self.draggingEdgeSource.connectionDirection()
+			if hoverConnectPoints: # stick to connection point
+				posB = hoverConnectPoints[0].mapToScene(hoverConnectPoints[0].connectionPosition())
+				dirB = hoverConnectPoints[0].connectionDirection()
+				self.draggingEdgePath.setPoints(
+					*curvedPoints(posA, dirA, posB, dirB, self))
+
+			else: # go straight to cursor
+				posB = event.scenePos()
+				dirB = -(posB - posA)
+				self.draggingEdgePath.setPoints(posA, posB=posB)
 
 		self.redraw()
 
@@ -466,7 +514,7 @@ class ChimaeraGraphScene(MouseDragScene, ConnectionPointSceneMixin):
 			#print("scene mouseRelease accepted, returning")
 			return True
 		#print("mouse release selection", self.selectedTiles())
-		if event.button() == QtCore.Qt.MouseButton.LeftButton and self.dragOrigin is not None:
+		if event.button() == QtCore.Qt.MouseButton.LeftButton and self.dragOrigin is not None and self.draggingSelectionBox:
 			rubberBandNodes = self.items(self.rubberBand.rect())
 			rubberBandNodes = [i for i in rubberBandNodes if isinstance(i, NodeDelegate)]
 			self.processSelectionAction(rubberBandNodes)
@@ -476,6 +524,12 @@ class ChimaeraGraphScene(MouseDragScene, ConnectionPointSceneMixin):
 			self.rubberBand.hide()
 			self.rubberBand.update()
 			self.redraw()
+
+		elif event.button() == QtCore.Qt.MouseButton.LeftButton and self.draggingEdgeSource:
+			self.endDrawingEdge()
+
+		self.draggingSelectionBox = False
+
 		#print("mouse release selection", self.selectedTiles())
 
 	#self.removeItem(self.rubberBand)

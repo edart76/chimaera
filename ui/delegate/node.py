@@ -15,7 +15,7 @@ from tree.ui.libwidget.atomicproxywiget import AtomicProxyWidget
 #from treegraph.node import GraphNode
 import typing as T
 from chimaera import ChimaeraGraph, ChimaeraNode
-from chimaera.constant import DataUse
+from chimaera.constant import DataUse, NodeDataKeys
 from chimaera.ui import graphItemType
 from chimaera.ui.base import GraphicsItemChange
 from chimaera.ui.constant import SelectionStatus
@@ -45,6 +45,8 @@ class NodeDelegate(GraphItemDelegateAbstract, AbstractNodeContainer,
 	connection points for edges are consistent heights on node
 
 	node shape is determined by tree widget
+
+	this should extend a base node container class, adding plugs and settings widget
 
 	 """
 	instancesMayCreateDelegates = True
@@ -94,24 +96,53 @@ class NodeDelegate(GraphItemDelegateAbstract, AbstractNodeContainer,
 		#self.settingsProxy.setGeometry(QtCore.QRectF(0, 0, 300, 300))
 
 		self.settingsProxy.setPos(self.edgePadding,
-		                          self.nameTagProxy.rect().bottom() + 10)
+		                          self.detailHeightLevel())
 
-		self.knobs = {
-			"in" : {dataUse : Knob(self.node, dataUse, isOutput=False, parent=self) for dataUse in DataUse},
-			"out" : {dataUse : Knob(self.node, dataUse, isOutput=True, parent=self) for dataUse in DataUse},
-		}
+		self.knobs = self.makeKnobs()
 
 
 		self.makeConnections()
 
+	def detailHeightLevel(self):
+		return self.nameTagProxy.rect().bottom() + 10
 
 	@property
 	def node(self)->ChimaeraNode:
 		return self.mainGraphElement()
 
-
 	def scene(self) -> ChimaeraGraphScene:
 		return super(NodeDelegate, self).scene()
+
+	def makeKnobs(self)->dict[str, dict[DataUse, Knob]]:
+		"""return a list of all knobs on this node"""
+		return {
+			"in": {dataUse: Knob(self.node, dataUse, isOutput=False, parent=self) for dataUse in DataUse},
+			"out": {dataUse: Knob(self.node, dataUse, isOutput=True, parent=self) for dataUse in DataUse},
+		}
+
+
+	def arrangeKnobs(self):
+		for i, v in enumerate(self.knobs.values()):
+			# get number of data uses
+			horizontalKnobs = {use : knob for use, knob in v.items() if use.uiPosition == DataUse.UiPlugPosition.LeftRight}
+			verticalKnobs = {use : knob for use, knob in v.items() if use.uiPosition == DataUse.UiPlugPosition.TopBottom}
+
+			heightIncrement = self.boundingRect().height() / (len(horizontalKnobs) + 2)
+			widthIncrement = self.boundingRect().width() / (len(verticalKnobs) + 1)
+
+			for n, (dataUse, knob) in enumerate(horizontalKnobs.items()):
+				if i == 0:
+					knob.setPos(self.boundingRect().left() - knob.childrenBoundingRect().width(), n * heightIncrement)
+				else:
+					knob.setPos(self.boundingRect().right(), n * heightIncrement)
+
+			for n, (dataUse, knob) in enumerate(verticalKnobs.items()):
+				if i == 0:
+					knob.setPos((1 + n) * widthIncrement,
+					            self.boundingRect().top() - knob.boundingRect().height())
+				else:
+					knob.setPos((1 + n) * widthIncrement,
+					            self.boundingRect().bottom())
 
 
 	def makeConnections(self):
@@ -131,6 +162,7 @@ class NodeDelegate(GraphItemDelegateAbstract, AbstractNodeContainer,
 
 	def sync(self, *args, **kwargs):
 		self.syncFromNode()
+		self.arrange()
 
 	def syncFromNode(self):
 		"""reset ui state to match that of node"""
@@ -138,9 +170,8 @@ class NodeDelegate(GraphItemDelegateAbstract, AbstractNodeContainer,
 
 	def arrange(self):
 		"""place plugs properly on borders of node"""
-		for use, points in self.edgePointMap().items():
-			self.knobs["in"][use].setPos(points[0])
-			self.knobs["out"][use].setPos(points[1])
+		#self.set
+		self.arrangeKnobs()
 
 
 	def onNodeEval(self):
@@ -159,11 +190,25 @@ class NodeDelegate(GraphItemDelegateAbstract, AbstractNodeContainer,
 		return self.boundingRect().height()
 
 	def edgePointMap(self)->dict[DataUse, tuple[QtCore.QPoint, QtCore.QPoint]]:
-		pointMap = {}
+		pointMap = {"in" : {}, "out" : {}}
+
 		nMembers = len(DataUse)
-		increment = self.boundingRect().height() / (nMembers + 2)
-		for i, member in enumerate(DataUse):
-			height = increment * (i + 1)
+		horizontalUses = [use for use in DataUse if use.uiPosition == DataUse.UiPlugPosition.LeftRight]
+		verticalUses = [use for use in DataUse if use.uiPosition == DataUse.UiPlugPosition.TopBottom]
+
+		nHorizontal = len(horizontalUses)
+		nVertical = len(verticalUses)
+
+		heightIncrement = self.boundingRect().height() / (nHorizontal + 2)
+		widthIncrement = self.boundingRect().width() / (nVertical + 1)
+		for i, member in enumerate(horizontalUses):
+			height = heightIncrement * (i + 1)
+			pointMap["in"][member] = (QtCore.QPointF(0, height) + self.scenePos(),
+			                    QtCore.QPointF(self.boundingRect().width(), height) + self.scenePos())
+			pointMap["out"][member] = (QtCore.QPointF(0, height) + self.scenePos(),
+			                          QtCore.QPointF(self.boundingRect().width(), height) + self.scenePos())
+		for i, member in enumerate(verticalUses):
+			height = widthIncrement * (i + 1)
 			pointMap[member] = (QtCore.QPointF(0, height) + self.scenePos(),
 			                    QtCore.QPointF(self.boundingRect().width(), height) + self.scenePos())
 		return pointMap
@@ -187,7 +232,9 @@ class NodeDelegate(GraphItemDelegateAbstract, AbstractNodeContainer,
 		#minWidth = minRect.x()
 		minHeight = minRect.y() + 20
 
-		minRect = minRect.united(self.settingsProxy.rect().toRect())
+		settingsRect = self.settingsProxy.rect().toRect()
+		settingsRect.moveTo(self.settingsProxy.pos().toPoint())
+		minRect = minRect.united(settingsRect)
 
 		#minHeight += self.settingsProxy.rect().height()
 
@@ -196,6 +243,7 @@ class NodeDelegate(GraphItemDelegateAbstract, AbstractNodeContainer,
 	def boundingRect(self):
 		minWidth, minHeight = self.getSize()
 		return QtCore.QRect(-self.edgePadding, -self.edgePadding, minWidth, minHeight)
+
 
 	def paint(self, painter, option, widget):
 		"""Paint the main background shape of the node"""
@@ -211,8 +259,8 @@ class NodeDelegate(GraphItemDelegateAbstract, AbstractNodeContainer,
 		radius_y = 2
 		path = QtGui.QPainterPath()
 		path.addRoundedRect(rect, radius_x, radius_y)
-		painter.setPen(QtGui.QPen(QtGui.QColor(0, 0, 0, 255), 1.5))
-		painter.drawPath(path)
+		#painter.setPen(QtGui.QPen(QtGui.QColor(0, 0, 0, 255), 1.5))
+		#painter.drawPath(path)
 
 		rect = self.boundingRect()
 		bg_color = QtGui.QColor(*self.colour)
@@ -268,6 +316,12 @@ class NodeDelegate(GraphItemDelegateAbstract, AbstractNodeContainer,
 		self.settingsWidg.resizeToTree()
 
 		self.settingsProxy.setGeometry(self.settingsWidg.geometry())
+
+		# hide common node params
+		self.settingsWidg.setKeyVisibilityMap({NodeDataKeys.nodeName : False,
+		                                       NodeDataKeys.treeValue : False,
+		                                       NodeDataKeys.treeProperties : False})
+		print("settings vis", self.settingsWidg.keyVisibilityPresetMap)
 
 		return self.settingsWidg
 
