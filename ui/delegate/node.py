@@ -232,7 +232,7 @@ class NodeDelegate(GraphItemDelegateAbstract, AbstractNodeContainer,
 		#minWidth = minRect.x()
 		minHeight = minRect.y() + 20
 
-		settingsRect = self.settingsProxy.rect().toRect()
+		settingsRect = self.settingsProxy.boundingRect().toRect()
 		settingsRect.moveTo(self.settingsProxy.pos().toPoint())
 		minRect = minRect.united(settingsRect)
 
@@ -242,7 +242,7 @@ class NodeDelegate(GraphItemDelegateAbstract, AbstractNodeContainer,
 
 	def boundingRect(self):
 		minWidth, minHeight = self.getSize()
-		return QtCore.QRect(-self.edgePadding, -self.edgePadding, minWidth, minHeight)
+		return QtCore.QRect(-self.edgePadding, -self.edgePadding, minWidth + self.edgePadding, minHeight + self.edgePadding)
 
 
 	def paint(self, painter, option, widget):

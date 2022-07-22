@@ -41,3 +41,25 @@ Edges would then also necessarily be reduced to uids, and not full node objects
 
 for ui, going with more signal-based approach lets us delegate even more functionality
 to delegates, avoids needing to modify scene classes too much
+
+
+
+use case 1: basic asset tracking
+
+asset : human
+contains components - body, head, skeleton
+component : body defines mesh
+
+components are all direct branches of asset
+
+how do we source paths for these properly?
+
+top asset defines
+{"dirPath" : "$root / $name" }
+
+body defines
+{"dirPath" : "$p.dirPath / $name" }
+
+
+
+

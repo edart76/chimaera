@@ -67,9 +67,16 @@ class GraphExecutionComponent:
 	def isDirty(self, node:(str, ChimaeraNode)):
 		return self.dirtyMap[toUid(node)]
 
-	def setDirty(self, node:(str, ChimaeraNode), dirty=True):
+	def setDirty(self, node:(str, ChimaeraNode), dirty=True,
+	             allFuture=True):
 		"""mark a node as dirty"""
 		self.dirtyMap[toUid(node)] = dirty
+		# optionally apply to all nodes in future
+		if allFuture:
+			for futureNode in nx.descendants(self.graph, node):
+				self.setDirty(futureNode, dirty, allFuture=False)
+
+
 
 	@property
 	def executingNode(self)->(ChimaeraNode, None):

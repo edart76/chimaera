@@ -6,6 +6,7 @@ import typing as T
 from tree.lib.sequence import flatten
 from tree import FailToFind
 from tree.lib.uid import getReadableUid, toUid
+from tree.lib.object import Serialisable, SerialiseVisitor
 from .nodedata import NodeDataHolder, NodeDataTree
 from chimaera.constant import NodeDataKeys, DataUse
 from .graphdata import GraphData
@@ -23,7 +24,7 @@ from chimaera.lib.catalogue import ClassCatalogue, baseChimaeraCatalogue
 CREATED_BY_KEY = "createdBy" # key for edge to node that created this one
 
 
-class ChimaeraGraph(nx.MultiDiGraph):
+class ChimaeraGraph(nx.MultiDiGraph, Serialisable):
 	"""uber holder for all edge sets and nodes
 	A CHIMAERA GRAPH MAY NOT BE REFERENCED
 	edge sets can be though
